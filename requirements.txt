@@ -1,0 +1,5 @@
+torch
+ipykernel
+graphviz
+torchviz
+matplotlib
