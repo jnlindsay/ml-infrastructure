@@ -1,5 +1,7 @@
 torch
+torchvision
 ipykernel
 graphviz
 torchviz
 matplotlib
+d2l
