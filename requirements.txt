@@ -1,5 +1,4 @@
 scikit-learn
-torch
-torchvision
 mlflow
 polars
+jupyterlab

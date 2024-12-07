@@ -1,9 +1,18 @@
 services:
-  python:
-    image: python:3.12
+  python-requirements:
+    build: .
     volumes:
       - ./requirements.txt:/app/requirements.txt
-    working_dir: /app
-    command: /bin/sh -c "pip install --no-cache-dir -r requirements.txt && tail -f /dev/null"
+    networks:
+      - backend
+
+  jupyter-lab:
+    image: ml-infrastructure-python-requirements:latest
     ports:
-      - "3000:3000"
+      - "8888:8888"
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root -NotebookApp.token='' --NotebookApp.password=''
+    networks:
+      - backend
+
+networks:
+  backend:
