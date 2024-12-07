@@ -1,0 +1,9 @@
+services:
+  python:
+    image: python:latest
+    volumes:
+      - ./requirements.txt:/app/requirements.txt
+    working_dir: /app
+    command: /bin/sh -c "pip install --no-cache-dir -r requirements.txt && tail -f /dev/null"
+    ports:
+      - "3000:3000"
