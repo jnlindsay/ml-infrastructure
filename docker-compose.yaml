@@ -1,13 +1,13 @@
 services:
   python-requirements:
     build: .
-    volumes:
-      - ./requirements.txt:/app/requirements.txt
     networks:
       - backend
 
   jupyter-lab:
     image: ml-infrastructure-python-requirements:latest
+    volumes:
+      - .:/app/
     ports:
       - "8888:8888"
     command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root -NotebookApp.token='' --NotebookApp.password=''
