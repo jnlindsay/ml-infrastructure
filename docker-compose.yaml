@@ -1,6 +1,6 @@
 services:
   python:
-    image: python:latest
+    image: python:3.12
     volumes:
       - ./requirements.txt:/app/requirements.txt
     working_dir: /app
