@@ -14,5 +14,15 @@ services:
     networks:
       - backend
 
+  mlflow:
+    image: ml-infrastructure-python-requirements:latest
+    volumes:
+      - .:/app/
+    ports:
+      - "8080:8080"
+    command: mlflow server --host 0.0.0.0 --port 8080
+    networks:
+      - backend
+
 networks:
   backend:
