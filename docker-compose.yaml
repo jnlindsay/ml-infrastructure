@@ -30,7 +30,7 @@ services:
       - .:/app/
     ports:
       - "8501:8501"
-    command: streamlit hello --server.address 0.0.0.0
+    command: streamlit run kaggle/competitions/playground-series-s4312/playground-series-s4e12-eda-streamlit.py --server.address 0.0.0.0
     networks:
       - backend
 
