@@ -3,3 +3,4 @@ mlflow
 polars
 jupyterlab
 seaborn
+streamlit
