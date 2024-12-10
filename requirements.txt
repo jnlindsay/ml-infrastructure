@@ -4,3 +4,4 @@ polars
 jupyterlab
 seaborn
 streamlit
+plotly
