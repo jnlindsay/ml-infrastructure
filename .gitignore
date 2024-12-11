@@ -3,3 +3,4 @@
 **/.ipynb_checkpoints/
 **/mlartifacts/
 **/mlruns/
+**/__pycache__/
