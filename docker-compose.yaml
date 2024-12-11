@@ -34,5 +34,12 @@ services:
     networks:
       - backend
 
+  playground:
+    image: ml-infrastructure-python-requirements:latest
+    volumes:
+      - .:/app/
+    networks:
+      - backend
+
 networks:
   backend:
