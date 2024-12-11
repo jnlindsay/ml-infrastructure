@@ -11,5 +11,5 @@ class Grid():
         for row in self.grid: print(row)
         print()
 
-    def random(self, values: list):
+    def random(self, values=list(range(10))):
         self.grid = np.random.choice(values, size=(self.num_rows, self.num_cols))
