@@ -34,7 +34,7 @@ class GridAutoencoder(nn.Module):
 # Example data
 grid_factory = grid.GridFactory(10, 10)
 data = grid.GridBatch.generate_batch(
-    lambda: grid_factory.generate_random(),
+    lambda: grid_factory.generate_random_line(),
     1000
 )
 
@@ -43,7 +43,7 @@ model = GridAutoencoder()
 loss_fn = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-for epoch in range(20):  # Training for 20 epochs
+for epoch in range(100):  # Training for 20 epochs
     for batch in torch.utils.data.DataLoader(data, batch_size=32, shuffle=True):
         optimizer.zero_grad()
         outputs = model(batch)
