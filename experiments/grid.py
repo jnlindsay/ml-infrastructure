@@ -30,8 +30,8 @@ class GridFactory():
     def draw_bresenham_line(self, grid, x_1, x_2, y_1, y_2):
         dx = abs(x_2 - x_1)
         dy = abs(y_2 - y_1)
-        sx = 1 if x_1 < x_2 else -1
-        sy = 1 if y_1 < y_2 else -1
+        s_x = 1 if x_1 < x_2 else -1
+        s_y = 1 if y_1 < y_2 else -1
         err = dx - dy
 
         while True:
@@ -41,10 +41,10 @@ class GridFactory():
             e2 = 2 * err
             if e2 > -dy:
                 err -= dy
-                x_1 += sx
+                x_1 += s_x
             if e2 < dx:
                 err += dx
-                y_1 += sy
+                y_1 += s_y
 
 class GridBatch():
     def generate_batch(grid_generator, batch_size):
