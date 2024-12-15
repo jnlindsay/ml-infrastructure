@@ -10,8 +10,12 @@ from trainer import GridAutoencoderTrainer
 
 ########################### GRID AUTOENCODER ##############################
 
-gridAutoencoderTrainer = GridAutoencoderTrainer()
-gridAutoencoderTrainer.train()
+gridAutoencoderTrainer = GridAutoencoderTrainer(10, 10)
+gridAutoencoderTrainer.train("random_lines", 1000, 20, force_retrain=True)
+gridAutoencoderTrainer.train("random", 1000, 10, force_retrain=True)
+gridAutoencoderTrainer.train("random_lines", 1000, 20, force_retrain=True)
+gridAutoencoderTrainer.train("random", 1000, 10, force_retrain=True)
+gridAutoencoderTrainer.train("random_lines", 1000, 50, force_retrain=True)
 gridAutoencoderTrainer.demonstrate()
 
 ###########################################################################

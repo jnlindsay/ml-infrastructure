@@ -1,18 +1,19 @@
 from abc import ABC, abstractmethod
-from models import GridAutoencoder
 from grid import GridFactory, GridBatch
+from models import GridAutoencoder
+import os
 import torch
 import torch.nn as nn
-import os
 
 class Trainer(ABC):
     def __init__(self, modelClass, model_name: str):
         self.model = modelClass()
+        self.model_name = model_name
         self.save_filename = model_name + ".pth"
         self.already_trained = os.path.exists(self.save_filename)
-    
+
     @abstractmethod
-    def configure_training_set():
+    def generate_training_set():
         pass
     
     @abstractmethod
@@ -24,30 +25,40 @@ class Trainer(ABC):
         pass
 
 class GridAutoencoderTrainer(Trainer):
-    def __init__(self):
+    def __init__(self, num_rows, num_cols):
         super().__init__(GridAutoencoder, "grid_autoencoder")
+        self.num_rows = num_rows
+        self.num_cols = num_cols
 
-    def configure_training_set(self, num_batches):
-        grid_factory = GridFactory(10, 10)
-        return GridBatch.generate_batch(
-            lambda: grid_factory.generate_random_line(),
-            num_batches
-        )
+    def generate_training_set(self, type: str, num_batches: int):
+        grid_factory = GridFactory(self.num_rows, self.num_cols)
 
-    def train(self):
-        if self.already_trained:
+        if type == "random":
+            generator = grid_factory.generate_random
+        elif type == "random_lines":
+            generator = grid_factory.generate_random_line
+
+        return GridBatch.generate_batch(generator, num_batches)
+
+    def train(
+        self, 
+        training_type: str,
+        num_training_batches: int,
+        num_epochs: int,
+        force_retrain=False
+    ):
+        if self.already_trained and force_retrain == False:
+            print(f"This model has already been trained. Loading file '{self.save_filename}'...")
             self.model.load_state_dict(torch.load(self.save_filename, weights_only=True))
             self.model.eval()
-            print("This model has already been trained.")
-            print(f"The model from the file {self.save_filename} has been loaded.")
             return
 
-        training_set = self.configure_training_set(1000)
+        training_set = self.generate_training_set(training_type, num_training_batches)
 
         loss_fn = nn.MSELoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
-        for epoch in range(100):
+        for epoch in range(num_epochs):
             for batch in torch.utils.data.DataLoader(training_set, batch_size=32, shuffle=True):
                 optimizer.zero_grad()
                 outputs = self.model(batch)
@@ -62,7 +73,7 @@ class GridAutoencoderTrainer(Trainer):
     def demonstrate(self):
         self.model.eval()
 
-        demo_example = self.configure_training_set(1)[0]
+        demo_example = self.generate_training_set("random_lines", 1)[0]
         
         with torch.no_grad():
             reconstructed = self.model(demo_example.unsqueeze(0)) # add batch dimension
