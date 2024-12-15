@@ -16,7 +16,7 @@ class GridFactory():
     def generate_random(self, scale=1, offset=0):
         return torch.rand(self.num_rows, self.num_cols) * scale + offset
 
-    def generate_random_line(self):
+    def generate_random_line(self, mixin_amount=0):
         grid = self.generate_empty()
 
         x_1 = np.random.randint(0, self.num_cols)
@@ -24,6 +24,9 @@ class GridFactory():
         y_1 = np.random.randint(0, self.num_cols)
         y_2 = np.random.randint(0, self.num_rows)
         self.draw_bresenham_line(grid, x_1, x_2, y_1, y_2)
+
+        if mixin_amount > 0:
+            grid = self.mixin_random(grid, mixin_amount)
 
         return grid
 
@@ -45,6 +48,10 @@ class GridFactory():
             if e2 < dx:
                 err += dx
                 y_1 += s_y
+    
+    def mixin_random(self, input_grid, amount: float):
+        output_grid = input_grid + amount * self.generate_random()
+        return output_grid.clamp(0, 1)
 
 class GridBatch():
     def generate_batch(grid_generator, batch_size):

@@ -44,6 +44,8 @@ class GridAutoencoderTrainer(Trainer):
             generator = grid_factory.generate_random
         elif type == "random_lines":
             generator = grid_factory.generate_random_line
+        elif type == "random_lines_mixin_0.1":
+            generator = lambda: grid_factory.generate_random_line(mixin_amount=0.1)
 
         return GridBatch.generate_batch(generator, num_batches)
 
