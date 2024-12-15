@@ -57,6 +57,7 @@ class GridAutoencoderTrainer(Trainer):
             print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
         
         torch.save(self.model.state_dict(), self.save_filename)
+        self.already_trained = True
 
     def demonstrate(self):
         self.model.eval()
