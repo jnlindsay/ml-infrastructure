@@ -1,8 +1,17 @@
 import grid
+from trainer import GridAutoencoderTrainer
 
-# Bresenham line
+########################### BRESENHAM LINE ################################
 
-grid_factory = grid.GridFactory(10, 10)
-grid = grid_factory.generate_random_line()
+# grid_factory = grid.GridFactory(10, 10)
+# grid = grid_factory.generate_random_line()
 
-print(grid)
+# print(grid)
+
+########################### GRID AUTOENCODER ##############################
+
+gridAutoencoderTrainer = GridAutoencoderTrainer()
+gridAutoencoderTrainer.train()
+gridAutoencoderTrainer.demonstrate()
+
+###########################################################################

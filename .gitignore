@@ -4,3 +4,4 @@
 **/mlartifacts/
 **/mlruns/
 **/__pycache__/
+**.pth
