@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from grid import GridFactory, GridBatch
 from models import GridAutoencoder
 import os
@@ -30,6 +31,12 @@ class GridAutoencoderTrainer(Trainer):
         self.num_rows = num_rows
         self.num_cols = num_cols
 
+    @dataclass
+    class TrainingPhase:
+        training_type: str
+        num_training_batches: str
+        num_epochs: str
+
     def generate_training_set(self, type: str, num_batches: int):
         grid_factory = GridFactory(self.num_rows, self.num_cols)
 
@@ -41,10 +48,8 @@ class GridAutoencoderTrainer(Trainer):
         return GridBatch.generate_batch(generator, num_batches)
 
     def train(
-        self, 
-        training_type: str,
-        num_training_batches: int,
-        num_epochs: int,
+        self,
+        training_phases: list,
         force_retrain=False
     ):
         if self.already_trained and force_retrain == False:
@@ -53,19 +58,23 @@ class GridAutoencoderTrainer(Trainer):
             self.model.eval()
             return
 
-        training_set = self.generate_training_set(training_type, num_training_batches)
+        for phase in training_phases:
+            training_set = self.generate_training_set(
+                phase.training_type,
+                phase.num_training_batches
+            )
 
-        loss_fn = nn.MSELoss()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+            loss_fn = nn.MSELoss()
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
 
-        for epoch in range(num_epochs):
-            for batch in torch.utils.data.DataLoader(training_set, batch_size=32, shuffle=True):
-                optimizer.zero_grad()
-                outputs = self.model(batch)
-                loss = loss_fn(outputs, batch)
-                loss.backward()
-                optimizer.step()
-            print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
+            for epoch in range(phase.num_epochs):
+                for batch in torch.utils.data.DataLoader(training_set, batch_size=32, shuffle=True):
+                    optimizer.zero_grad()
+                    outputs = self.model(batch)
+                    loss = loss_fn(outputs, batch)
+                    loss.backward()
+                    optimizer.step()
+                print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
         
         torch.save(self.model.state_dict(), self.save_filename)
         self.already_trained = True

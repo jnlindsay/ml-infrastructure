@@ -11,11 +11,15 @@ from trainer import GridAutoencoderTrainer
 ########################### GRID AUTOENCODER ##############################
 
 gridAutoencoderTrainer = GridAutoencoderTrainer(10, 10)
-gridAutoencoderTrainer.train("random_lines", 1000, 20, force_retrain=True)
-gridAutoencoderTrainer.train("random", 1000, 10, force_retrain=True)
-gridAutoencoderTrainer.train("random_lines", 1000, 20, force_retrain=True)
-gridAutoencoderTrainer.train("random", 1000, 10, force_retrain=True)
-gridAutoencoderTrainer.train("random_lines", 1000, 50, force_retrain=True)
+
+training_phases = [
+    GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 20),
+    GridAutoencoderTrainer.TrainingPhase("random", 1000, 10),
+    GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 20),
+    GridAutoencoderTrainer.TrainingPhase("random", 1000, 10),
+    GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 50)
+]
+gridAutoencoderTrainer.train(training_phases)
 gridAutoencoderTrainer.demonstrate()
 
 ###########################################################################
