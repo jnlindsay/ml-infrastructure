@@ -80,7 +80,7 @@ class GridCounter(nn.Module):
 
             # update states
             mask_memory = mask_memory + write_memory
-            current_count = current_count + (increment > 0.5).float()
+            current_count = current_count + increment
 
             # check termination
             if (terminate > 0.5).all():

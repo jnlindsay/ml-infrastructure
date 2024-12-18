@@ -121,11 +121,52 @@ class GridCounterTrainer(Trainer):
             self.grid_size
         )
 
-    def generate_training_set(self):
-        pass
+    def generate_training_set(self, batch_size):
+        """
+        !!! DUMMY DATASET !!!
+        """
+        grids = torch.randn((batch_size, 1, self.grid_size, self.grid_size))
+        target_counts = torch.randint(1, 10, (batch_size, 1)).float()
+        return grids, target_counts
 
     def train(self):
-        pass
+        num_epochs = 100
+        batch_size = 16
+        learning_rate = 0.001
+        max_steps = 50
+
+        # TODO: specify Mac device?
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(device)
+
+        mse_loss = nn.MSELoss()
+        optimiser = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+
+        # training loop
+        for epoch in range(num_epochs):
+            self.model.train()
+            epoch_loss = 0.0
+
+            for _ in range(100): # 100 batches per epoch
+                grids, target_counts = self.generate_training_set(batch_size)
+                grids, target_counts = grids.to(device), target_counts.to(device)
+
+                optimiser.zero_grad()
+                predicted_counts, _ = self.model(grids, max_steps=max_steps)
+
+                predicted_counts = predicted_counts.squeeze()
+                loss = mse_loss(predicted_counts, target_counts)
+
+                loss.backward()
+                optimiser.step()
+
+                epoch_loss += loss.item()
+
+            # log epoch loss
+            avg_epoch_loss = epoch_loss / 100
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {avg_epoch_loss:.4f}")
+        
+        print("Training complete.")
 
     def demonstrate(self):
         model = GridCounter(

@@ -26,5 +26,5 @@ from trainer import GridAutoencoderTrainer, GridCounterTrainer
 ############################## GRID COUNTER ###############################
 
 gridCounterTrainer = GridCounterTrainer(32, 64, 10)
-gridCounterTrainer.demonstrate()
-
+gridCounterTrainer.train()
+# gridCounterTrainer.demonstrate()
