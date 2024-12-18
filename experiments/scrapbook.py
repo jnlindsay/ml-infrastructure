@@ -1,7 +1,6 @@
 import torch
 import grid
-from trainer import GridAutoencoderTrainer
-from models import GridCounter
+from trainer import GridAutoencoderTrainer, GridCounterTrainer
 
 ########################### BRESENHAM LINE ################################
 
@@ -21,19 +20,11 @@ from models import GridCounter
 #     GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 20),
 #     GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 1000)
 # ]
-# gridAutoencoderTrainer.train(training_phases, force_retrain=True)
+# gridAutoencoderTrainer.train(training_phases, force_retrain=False)
 # gridAutoencoderTrainer.demonstrate()
 
 ############################## GRID COUNTER ###############################
 
-input_size = 32 # dimension of CNN output
-hidden_size = 64
-grid_size = 10
+gridCounterTrainer = GridCounterTrainer(32, 64, 10)
+gridCounterTrainer.demonstrate()
 
-model = GridCounter(input_size, hidden_size, grid_size)
-
-grid = torch.randn((2, 1, grid_size, grid_size)) # batch size of 2
-
-final_count, final_mask = model(grid)
-print("Final Count:", final_count)
-print("Final Mask Memory:", final_mask.view(-1, grid_size, grid_size))

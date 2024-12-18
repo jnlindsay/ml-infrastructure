@@ -1,17 +1,21 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from grid import GridFactory, GridBatch
-from models import GridAutoencoder
+from models import GridAutoencoder, GridCounter
 import os
 import torch
 import torch.nn as nn
 
 class Trainer(ABC):
-    def __init__(self, modelClass, model_name: str):
-        self.model = modelClass()
+    def __init__(self, model_name: str):
+        self.model = self.model_factory()
         self.model_name = model_name
         self.save_filename = model_name + ".pth"
         self.already_trained = os.path.exists(self.save_filename)
+
+    @abstractmethod
+    def model_factory():
+        pass
 
     @abstractmethod
     def generate_training_set():
@@ -27,7 +31,7 @@ class Trainer(ABC):
 
 class GridAutoencoderTrainer(Trainer):
     def __init__(self, num_rows, num_cols):
-        super().__init__(GridAutoencoder, "grid_autoencoder")
+        super().__init__("grid_autoencoder")
         self.num_rows = num_rows
         self.num_cols = num_cols
 
@@ -36,6 +40,9 @@ class GridAutoencoderTrainer(Trainer):
         training_type: str
         num_training_batches: str
         num_epochs: str
+
+    def model_factory(self):
+        return GridAutoencoder()
 
     def generate_training_set(self, type: str, num_batches: int):
         grid_factory = GridFactory(self.num_rows, self.num_cols)
@@ -99,3 +106,36 @@ class GridAutoencoderTrainer(Trainer):
         print("\nReconstructed Grid:")
         for row in reconstructed_grid:
             print(["{:.2f}".format(val) for val in row])
+
+class GridCounterTrainer(Trainer):
+    def __init__(self, input_size, hidden_size, grid_size):
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.grid_size = grid_size
+        super().__init__("grid_counter")
+
+    def model_factory(self):
+        return GridCounter(
+            self.input_size, 
+            self.hidden_size, 
+            self.grid_size
+        )
+
+    def generate_training_set(self):
+        pass
+
+    def train(self):
+        pass
+
+    def demonstrate(self):
+        model = GridCounter(
+            self.input_size, 
+            self.hidden_size,
+            self.grid_size
+        )
+
+        grid = torch.randn((2, 1, self.grid_size, self.grid_size)) # batch size of 2
+
+        final_count, final_mask = model(grid)
+        print("Final Count:", final_count)
+        print("Final Mask Memory:", final_mask.view(-1, self.grid_size, self.grid_size))
