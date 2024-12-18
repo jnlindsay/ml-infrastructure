@@ -13,10 +13,12 @@ from trainer import GridAutoencoderTrainer
 gridAutoencoderTrainer = GridAutoencoderTrainer(10, 10)
 
 training_phases = [
-    GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 20),
-    GridAutoencoderTrainer.TrainingPhase("random", 1000, 5),
-    GridAutoencoderTrainer.TrainingPhase("random_lines_mixin_0.1", 1000, 50),
-    GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 20),
+    # GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 20),
+    # GridAutoencoderTrainer.TrainingPhase("random", 1000, 5),
+    # GridAutoencoderTrainer.TrainingPhase("random_lines_mixin_0.1", 1000, 50),
+    # GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 20),
+    # GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 1000)
+    GridAutoencoderTrainer.TrainingPhase("random", 1000, 100)
 ]
 gridAutoencoderTrainer.train(training_phases, force_retrain=True)
 gridAutoencoderTrainer.demonstrate()
