@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from grid import GridFactory, GridBatch
 from models import GridAutoencoder, GridCounter
 import os
+import random
 import torch
 import torch.nn as nn
 
@@ -122,21 +123,34 @@ class GridCounterTrainer(Trainer):
         )
 
     def generate_training_set(self, batch_size):
-        """
-        !!! DUMMY DATASET !!!
-        """
-        grids = torch.randn((batch_size, 1, self.grid_size, self.grid_size))
-        target_counts = torch.randint(1, 10, (batch_size, 1)).float()
-        return grids, target_counts
+        grid_factory = GridFactory(self.grid_size, self.grid_size)
 
-    def train(self):
+        grids = []
+        counts = []
+        for num_dots in range(batch_size):
+            num_dots = random.randint(0, 10)
+            grid = grid_factory.generate_random_spaced_dots(num_dots=num_dots)
+            grids.append(grid.unsqueeze(0))
+            counts.append(num_dots)
+
+        grids_batch = torch.stack(grids)
+        counts_batch = torch.tensor(counts, dtype=torch.float32)
+
+        return grids_batch, counts_batch
+
+    def train(self, force_retrain=False):
+        if force_retrain == False:
+            print(f"This model has already been trained. Loading file '{self.save_filename}'...")
+            self.model.load_state_dict(torch.load(self.save_filename, weights_only=True))
+            self.model.eval()
+            return
+
         num_epochs = 100
         batch_size = 16
         learning_rate = 0.001
-        max_steps = 50
+        max_steps = 100
 
-        # TODO: specify Mac device?
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         self.model.to(device)
 
         mse_loss = nn.MSELoss()
@@ -144,17 +158,24 @@ class GridCounterTrainer(Trainer):
 
         # training loop
         for epoch in range(num_epochs):
+            print(f"Epoch {epoch}...")
+
             self.model.train()
             epoch_loss = 0.0
 
-            for _ in range(100): # 100 batches per epoch
+            for batch in range(10): # 100 batches per epoch
                 grids, target_counts = self.generate_training_set(batch_size)
                 grids, target_counts = grids.to(device), target_counts.to(device)
 
                 optimiser.zero_grad()
                 predicted_counts, _ = self.model(grids, max_steps=max_steps)
-
                 predicted_counts = predicted_counts.squeeze()
+
+                # print(max(predicted_counts.tolist()))
+                
+                # print("Target:", target_counts.tolist())
+                # print("Predicted:", predicted_counts.tolist())
+
                 loss = mse_loss(predicted_counts, target_counts)
 
                 loss.backward()
@@ -168,15 +189,23 @@ class GridCounterTrainer(Trainer):
         
         print("Training complete.")
 
+        torch.save(self.model.state_dict(), self.save_filename)
+        self.already_trained = True
+
     def demonstrate(self):
-        model = GridCounter(
-            self.input_size, 
-            self.hidden_size,
-            self.grid_size
-        )
+        self.model.load_state_dict(torch.load(self.save_filename, weights_only=True))
+        self.model.eval()
 
-        grid = torch.randn((2, 1, self.grid_size, self.grid_size)) # batch size of 2
+        max_steps = 100
+        
+        grids, target_counts = self.generate_training_set(1)
+        print(grids)
+        print("Target count:", target_counts.tolist()[0])
 
-        final_count, final_mask = model(grid)
-        print("Final Count:", final_count)
-        print("Final Mask Memory:", final_mask.view(-1, self.grid_size, self.grid_size))
+        predicted_counts, mask_memory = self.model(grids, max_steps=max_steps)
+        print("Predicted count:", predicted_counts.tolist()[0])
+
+        print("Mask memory:")
+        print(mask_memory)
+
+        

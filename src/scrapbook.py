@@ -4,12 +4,12 @@ from trainer import GridAutoencoderTrainer, GridCounterTrainer
 
 ########################### BRESENHAM LINE ################################
 
-num_dots = 10
+# num_dots = 10
 
-grid_factory = grid.GridFactory(10, 10)
-for _ in range(10000):
-    grid = grid_factory.generate_random_spaced_dots(num_dots=num_dots)
-    assert(torch.sum(grid == 1.0).item() == num_dots)
+# grid_factory = grid.GridFactory(10, 10)
+# for _ in range(10000):
+#     grid = grid_factory.generate_random_spaced_dots(num_dots=num_dots)
+#     assert(torch.sum(grid == 1.0).item() == num_dots)
 
 # print(grid)
 
@@ -29,6 +29,6 @@ for _ in range(10000):
 
 ############################## GRID COUNTER ###############################
 
-# gridCounterTrainer = GridCounterTrainer(32, 64, 10)
-# gridCounterTrainer.train()
-# gridCounterTrainer.demonstrate()
+gridCounterTrainer = GridCounterTrainer(32, 64, 10)
+# gridCounterTrainer.train(force_retrain=False)
+gridCounterTrainer.demonstrate()
