@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import random
 
 class GridFactory():
     def __init__(
@@ -15,6 +16,30 @@ class GridFactory():
 
     def generate_random(self, scale=1, offset=0):
         return torch.rand(self.num_rows, self.num_cols) * scale + offset
+
+    def generate_random_spaced_dots(self, num_dots=2):
+        grid = self.generate_empty()
+
+        num_dots_remaining = num_dots
+        while num_dots_remaining > 0:
+            i = random.randint(0, self.num_cols - 1)
+            j = random.randint(0, self.num_rows - 1)
+
+            skip = False
+            for ii in [i - 1, i, i + 1]:
+                for jj in [j - 1, j, j + 1]:
+                    if (
+                        ii >= 0 and ii <= self.num_cols - 1 and
+                        jj >= 0 and jj <= self.num_rows - 1 and
+                        grid[ii][jj] == 1.0
+                    ):
+                        skip = True
+            
+            if skip is False:
+                grid[i][j] = 1.0
+                num_dots_remaining -= 1
+
+        return grid
 
     def generate_random_line(self, mixin_amount=0):
         grid = self.generate_empty()
