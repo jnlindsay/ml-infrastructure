@@ -13,3 +13,4 @@ Run: `docker compose up`
 - [ ] Grid: generate block shapes
 - [ ] Grid: generate mirrored grid
 - [ ] Abstract out model-saving functionality in `Trainer`
+- [ ] Rename LLM-generated files to be descriptive
