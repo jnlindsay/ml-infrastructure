@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from grid import GridFactory, GridBatch
+from utilities.grid import GridFactory, GridBatch
 from abstract_classes.trainer import Trainer
-from models import GridAutoencoder, GridCounter
+from models.models import GridAutoencoder, GridCounter
 import os
 import random
 import torch

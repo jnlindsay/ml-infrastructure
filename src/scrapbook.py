@@ -1,6 +1,6 @@
 import torch
-import grid
-from trainer import GridAutoencoderTrainer, GridCounterTrainer
+from utilities import grid
+from trainers.trainer import GridAutoencoderTrainer, GridCounterTrainer
 
 ########################### BRESENHAM LINE ################################
 
