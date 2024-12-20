@@ -60,7 +60,7 @@ class GridCounter(nn.Module):
         """
 
         batch_size, _, H, W = grid.shape
-        device = grid.device
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
         # initialise states
         mask_memory = torch.zeros((batch_size, H * W), device=device)
