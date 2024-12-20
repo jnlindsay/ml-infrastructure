@@ -1,34 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from grid import GridFactory, GridBatch
+from abstract_classes.trainer import Trainer
 from models import GridAutoencoder, GridCounter
 import os
 import random
 import torch
 import torch.nn as nn
-
-class Trainer(ABC):
-    def __init__(self, model_name: str):
-        self.model = self.model_factory()
-        self.model_name = model_name
-        self.save_filename = model_name + ".pth"
-        self.already_trained = os.path.exists(self.save_filename)
-
-    @abstractmethod
-    def model_factory():
-        pass
-
-    @abstractmethod
-    def generate_training_set():
-        pass
-    
-    @abstractmethod
-    def train():
-        pass
-
-    @abstractmethod
-    def demonstrate():
-        pass
 
 class GridAutoencoderTrainer(Trainer):
     def __init__(self, num_rows, num_cols):
@@ -193,7 +171,6 @@ class GridCounterTrainer(Trainer):
         self.already_trained = True
 
     def demonstrate(self):
-        self.model.load_state_dict(torch.load(self.save_filename, weights_only=True))
         self.model.eval()
 
         max_steps = 100
