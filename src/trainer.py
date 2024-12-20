@@ -206,6 +206,6 @@ class GridCounterTrainer(Trainer):
         print("Predicted count:", predicted_counts.tolist()[0])
 
         print("Mask memory:")
-        print(mask_memory)
+        print(mask_memory.view(self.grid_size, self.grid_size))
 
         
