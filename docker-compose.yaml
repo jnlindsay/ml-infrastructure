@@ -1,11 +1,18 @@
 services:
   python-requirements:
-    build: .
+    build:
+      context: .
+    image: python-requirements:latest
+    volumes:
+      - .:/app/
     networks:
       - backend
 
   jupyter-lab:
-    image: ml-infrastructure-python-requirements:latest
+    image: python-requirements:latest
+    depends_on:
+      python-requirements:
+        condition: service_started
     volumes:
       - .:/app/
     ports:
@@ -15,7 +22,10 @@ services:
       - backend
 
   mlflow:
-    image: ml-infrastructure-python-requirements:latest
+    image: python-requirements:latest
+    depends_on:
+      python-requirements:
+        condition: service_started
     volumes:
       - .:/app/
     ports:
@@ -25,19 +35,15 @@ services:
       - backend
 
   streamlit:
-    image: ml-infrastructure-python-requirements:latest
+    image: python-requirements:latest
+    depends_on:
+      python-requirements:
+        condition: service_started
     volumes:
       - .:/app/
     ports:
       - "8501:8501"
-    command: streamlit run kaggle/competitions/playground-series-s4e12/playground-series-s4e12-eda-streamlit.py --server.address 0.0.0.0
-    networks:
-      - backend
-
-  playground:
-    image: ml-infrastructure-python-requirements:latest
-    volumes:
-      - .:/app/
+    command: streamlit run src/streamlit/welcome.py --server.address 0.0.0.0
     networks:
       - backend
 

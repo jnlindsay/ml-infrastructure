@@ -13,3 +13,4 @@ jupyterlab
 seaborn
 streamlit
 plotly
+pytest
