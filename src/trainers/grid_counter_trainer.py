@@ -36,7 +36,7 @@ class GridCounterTrainer(Trainer):
         return grids_batch, counts_batch
 
     def train(self, force_retrain=False):
-        if not force_retrain:
+        if self.save_file_exists() and not force_retrain:
             print(f"This model has already been trained. Loading file '{self.save_filename}'...")
             self.model.load_state_dict(torch.load(self.save_filename, weights_only=True))
             self.model.eval()
@@ -90,15 +90,21 @@ class GridCounterTrainer(Trainer):
         self.already_trained = True
 
     def demonstrate(self):
-        self.model.eval()
+        device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
         max_steps = 100
 
+        self.model.to(device)
+        self.model.eval()
+
         grids, target_counts = self.generate_training_set(1)
+        grids = grids.to(device)
+
         print(grids)
         print("Target count:", target_counts.tolist()[0])
 
-        predicted_counts, mask_memory = self.model(grids, max_steps=max_steps)
+        with torch.no_grad():
+            predicted_counts, mask_memory = self.model(grids, max_steps=max_steps)
         print("Predicted count:", predicted_counts.tolist()[0])
 
         print("Mask memory:")

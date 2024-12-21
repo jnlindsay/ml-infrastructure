@@ -8,7 +8,6 @@ class Trainer(ABC):
         self.model = self.model_factory()
         self.model_name = model_name
         self.save_filename = model_name + ".pth"
-        self.already_trained = os.path.exists(self.save_filename)
 
     @abstractmethod
     def model_factory(self):
@@ -25,3 +24,6 @@ class Trainer(ABC):
     @abstractmethod
     def demonstrate(self):
         pass
+
+    def save_file_exists(self) -> bool:
+        return os.path.exists(self.save_filename)
