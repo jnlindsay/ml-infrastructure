@@ -37,7 +37,7 @@ class GridAutoencoderTrainer(Trainer):
         training_phases: list,
         force_retrain=False
     ):
-        if self.save_file_exists and force_retrain == False:
+        if self.save_file_exists() and force_retrain == False:
             print(f"This model has already been trained. Loading file '{self.save_filename}'...")
             self.model.load_state_dict(torch.load(self.save_filename, weights_only=True))
             self.model.eval()
