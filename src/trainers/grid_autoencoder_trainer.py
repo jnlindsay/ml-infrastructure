@@ -4,6 +4,7 @@ from trainers.trainer import Trainer
 from models.grid_autoencoder import GridAutoencoder
 import torch
 import torch.nn as nn
+from utilities.hash import Hash
 
 class GridAutoencoderTrainer(Trainer):
     def __init__(self, num_rows, num_cols):
@@ -11,7 +12,7 @@ class GridAutoencoderTrainer(Trainer):
         self.num_rows = num_rows
         self.num_cols = num_cols
 
-    @dataclass
+    @dataclass(frozen=True)
     class TrainingPhase:
         training_type: str
         num_training_batches: str
@@ -39,9 +40,11 @@ class GridAutoencoderTrainer(Trainer):
     def train(
         self,
         training_phases: list,
-        force_retrain=False,
+        force_retrain=False
     ):
-        if self.save_file_exists() and force_retrain == False:
+        save_filepath_suffix = Hash.hash_to_string(training_phases)
+
+        if self.save_file_exists(suffix = save_filepath_suffix) and force_retrain == False:
             print(f"This model has already been trained. Loading file '{self.save_filepath}'...")
             self.model.load_state_dict(torch.load(self.save_filepath, weights_only=True))
             self.model.eval()
@@ -65,7 +68,7 @@ class GridAutoencoderTrainer(Trainer):
                     optimizer.step()
                 print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
         
-        torch.save(self.model.state_dict(), self.save_filepath)
+        torch.save(self.model.state_dict(), self.get_save_filepath(suffix = save_filepath_suffix))
 
     def demonstrate(self, type: str):
         self.model.eval()

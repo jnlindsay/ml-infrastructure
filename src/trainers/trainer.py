@@ -23,11 +23,11 @@ class Trainer(ABC):
     def demonstrate(self):
         pass
 
-    def get_save_filepath(self):
+    def get_save_filepath(self, suffix: str = None):
         class_dir = os.path.dirname(os.path.abspath(__file__))
         saved_models_dir = os.path.join(class_dir, "saved_models")
         os.makedirs(saved_models_dir, exist_ok=True)
-        return os.path.join(saved_models_dir, self.model_name + ".pth")
+        return os.path.join(saved_models_dir, self.model_name + ("_" + suffix if suffix else "") + ".pth")
 
-    def save_file_exists(self) -> bool:
-        return os.path.exists(self.save_filepath)
+    def save_file_exists(self, suffix: str = "") -> bool:
+        return os.path.exists(self.get_save_filepath(suffix=suffix))
