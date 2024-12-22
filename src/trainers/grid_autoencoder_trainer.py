@@ -22,20 +22,24 @@ class GridAutoencoderTrainer(Trainer):
 
     def generate_training_set(self, type: str, num_batches: int):
         grid_factory = GridFactory(self.num_rows, self.num_cols)
+        generator = None
 
         if type == "random":
             generator = grid_factory.generate_random
+        elif type == "random_symmetrical":
+            generator = grid_factory.generate_random_symmetrical
         elif type == "random_lines":
             generator = grid_factory.generate_random_line
         elif type == "random_lines_mixin_0.1":
             generator = lambda: grid_factory.generate_random_line(mixin_amount=0.1)
 
+        if generator is None: raise Exception("No generator specified")
         return GridBatch.generate_batch(generator, num_batches)
 
     def train(
         self,
         training_phases: list,
-        force_retrain=False
+        force_retrain=False,
     ):
         if self.save_file_exists() and force_retrain == False:
             print(f"This model has already been trained. Loading file '{self.save_filename}'...")
@@ -62,13 +66,20 @@ class GridAutoencoderTrainer(Trainer):
                 print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
         
         torch.save(self.model.state_dict(), self.save_filename)
-        self.already_trained = True
 
-    def demonstrate(self):
+    def demonstrate(self, type: str):
         self.model.eval()
 
-        demo_example = self.generate_training_set("random_lines", 1)[0]
-        
+        demo_example = None
+        if type == "random":
+            pass
+        elif type == "random_symmetrical":
+            demo_example = self.generate_training_set("random_symmetrical", 1)[0]
+        elif type == "random_lines":
+            demo_example = self.generate_training_set("random_lines", 1)[0]
+        elif type == "random_lines_mixin_0.1":
+            pass
+
         with torch.no_grad():
             reconstructed = self.model(demo_example.unsqueeze(0)) # add batch dimension
 
