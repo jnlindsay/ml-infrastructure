@@ -14,3 +14,4 @@ Run: `docker compose up`
 - [ ] Grid: generate mirrored grid
 - [ ] Abstract out model-saving functionality in `Trainer`
 - [ ] Rename LLM-generated files to be descriptive
+- [ ] Write tests for `Visualiser`
