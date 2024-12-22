@@ -5,7 +5,7 @@ class Trainer(ABC):
     def __init__(self, model_name: str):
         self.model = self.model_factory()
         self.model_name = model_name
-        self.save_filename = self.get_save_filepath()
+        self.save_filepath = self.get_save_filepath()
 
     @abstractmethod
     def model_factory(self):
@@ -30,4 +30,4 @@ class Trainer(ABC):
         return os.path.join(saved_models_dir, self.model_name + ".pth")
 
     def save_file_exists(self) -> bool:
-        return os.path.exists(self.save_filename)
+        return os.path.exists(self.save_filepath)

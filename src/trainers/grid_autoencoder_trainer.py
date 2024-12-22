@@ -42,8 +42,8 @@ class GridAutoencoderTrainer(Trainer):
         force_retrain=False,
     ):
         if self.save_file_exists() and force_retrain == False:
-            print(f"This model has already been trained. Loading file '{self.save_filename}'...")
-            self.model.load_state_dict(torch.load(self.save_filename, weights_only=True))
+            print(f"This model has already been trained. Loading file '{self.save_filepath}'...")
+            self.model.load_state_dict(torch.load(self.save_filepath, weights_only=True))
             self.model.eval()
             return
 
@@ -65,7 +65,7 @@ class GridAutoencoderTrainer(Trainer):
                     optimizer.step()
                 print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
         
-        torch.save(self.model.state_dict(), self.save_filename)
+        torch.save(self.model.state_dict(), self.save_filepath)
 
     def demonstrate(self, type: str):
         self.model.eval()

@@ -37,8 +37,8 @@ class GridCounterTrainer(Trainer):
 
     def train(self, force_retrain=False):
         if self.save_file_exists() and not force_retrain:
-            print(f"This model has already been trained. Loading file '{self.save_filename}'...")
-            self.model.load_state_dict(torch.load(self.save_filename, weights_only=True))
+            print(f"This model has already been trained. Loading file '{self.save_filepath}'...")
+            self.model.load_state_dict(torch.load(self.save_filepath, weights_only=True))
             self.model.eval()
             return
 
@@ -86,7 +86,7 @@ class GridCounterTrainer(Trainer):
 
         print("Training complete.")
 
-        torch.save(self.model.state_dict(), self.save_filename)
+        torch.save(self.model.state_dict(), self.save_filepath)
         self.already_trained = True
 
     def demonstrate(self):
