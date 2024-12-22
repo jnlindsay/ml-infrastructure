@@ -71,18 +71,20 @@ class GridAutoencoderTrainer(Trainer):
         
         torch.save(self.model.state_dict(), save_filepath)
 
-    def demonstrate(self, type: str):
+    def demonstrate(self, type: str = None, demo_example=None):
         self.model.eval()
 
-        demo_example = None
-        if type == "random":
-            pass
-        elif type == "random_symmetrical":
-            demo_example = self.generate_training_set("random_symmetrical", 1)[0]
-        elif type == "random_lines":
-            demo_example = self.generate_training_set("random_lines", 1)[0]
-        elif type == "random_lines_mixin_0.1":
-            pass
+        if demo_example is None:
+            if type == "random":
+                pass
+            elif type == "random_symmetrical":
+                demo_example = self.generate_training_set("random_symmetrical", 1)[0]
+            elif type == "random_lines":
+                demo_example = self.generate_training_set("random_lines", 1)[0]
+            elif type == "random_lines_mixin_0.1":
+                pass
+
+        if demo_example is None: raise Exception("No demo example specified")
 
         with torch.no_grad():
             reconstructed = self.model(demo_example.unsqueeze(0)) # add batch dimension
