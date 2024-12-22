@@ -5,7 +5,6 @@ class Trainer(ABC):
     def __init__(self, model_name: str):
         self.model = self.model_factory()
         self.model_name = model_name
-        self.save_filepath = self.get_save_filepath()
 
     @abstractmethod
     def model_factory(self):
