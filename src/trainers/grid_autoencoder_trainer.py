@@ -16,8 +16,8 @@ class GridAutoencoderTrainer(Trainer):
     @dataclass(frozen=True)
     class TrainingPhase:
         training_type: str
-        num_training_batches: str
-        num_epochs: str
+        num_training_batches: int
+        num_epochs: int
 
     def model_factory(self):
         return GridAutoencoder()
