@@ -37,8 +37,8 @@ class GridFactory():
             for ii in [i - 1, i, i + 1]:
                 for jj in [j - 1, j, j + 1]:
                     if (
-                        ii >= 0 and ii <= self.num_cols - 1 and
-                        jj >= 0 and jj <= self.num_rows - 1 and
+                        0 <= ii <= self.num_cols - 1 and
+                        0 <= jj <= self.num_rows - 1 and
                         grid[ii][jj] == 1.0
                     ):
                         skip = True
