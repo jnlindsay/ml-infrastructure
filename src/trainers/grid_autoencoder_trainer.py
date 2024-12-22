@@ -5,6 +5,7 @@ from models.grid_autoencoder import GridAutoencoder
 import torch
 import torch.nn as nn
 from utilities.hash import Hash
+from utilities.visualiser import Visualiser
 
 class GridAutoencoderTrainer(Trainer):
     def __init__(self, num_rows, num_cols):
@@ -89,15 +90,13 @@ class GridAutoencoderTrainer(Trainer):
         with torch.no_grad():
             reconstructed = self.model(demo_example.unsqueeze(0)) # add batch dimension
 
-        original_grid = demo_example.squeeze(0).squeeze(0).tolist()
-        reconstructed_grid = reconstructed.squeeze(0).squeeze(0).tolist()
+        original_grid = demo_example.squeeze(0).squeeze(0)
+        reconstructed_grid = reconstructed.squeeze(0).squeeze(0)
 
         print("Original Grid:")
-        for row in original_grid:
-            print(["{:.2f}".format(val) for val in row])
+        Visualiser.visualise(original_grid)
 
         print("\nReconstructed Grid:")
-        for row in reconstructed_grid:
-            print(["{:.2f}".format(val) for val in row])
+        Visualiser.visualise(reconstructed_grid)
 
         
