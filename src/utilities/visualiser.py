@@ -7,6 +7,6 @@ class Visualiser:
         if len(grid.shape) != 2:
             raise Exception("Grid must be 2-dimensional")
 
-        plt.imshow(grid.numpy(), cmap="gray", interpolation="none")
+        plt.imshow(grid.numpy(), cmap="gray_r", interpolation="none")
         plt.title("Grid visualisation")
         plt.show()

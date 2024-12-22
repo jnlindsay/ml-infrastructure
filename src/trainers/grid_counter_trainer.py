@@ -5,6 +5,9 @@ import torch
 import torch.nn as nn
 import random
 
+from utilities.visualiser import Visualiser
+
+
 class GridCounterTrainer(Trainer):
     def __init__(self, input_size, hidden_size, grid_size):
         self.input_size = input_size
@@ -36,9 +39,9 @@ class GridCounterTrainer(Trainer):
         return grids_batch, counts_batch
 
     def train(self, force_retrain=False):
-        if self.save_file_exists() and not force_retrain:
-            print(f"This model has already been trained. Loading file '{self.save_filepath}'...")
-            self.model.load_state_dict(torch.load(self.save_filepath, weights_only=True))
+        if self.save_file_exists() and force_retrain == False:
+            print(f"Loading model from file '{self.get_save_filepath()}'...")
+            self.model.load_state_dict(torch.load(self.get_save_filepath(), weights_only=True))
             self.model.eval()
             return
 
@@ -68,11 +71,6 @@ class GridCounterTrainer(Trainer):
                 predicted_counts, _ = self.model(grids, max_steps=max_steps)
                 predicted_counts = predicted_counts.squeeze()
 
-                # print(max(predicted_counts.tolist()))
-
-                # print("Target:", target_counts.tolist())
-                # print("Predicted:", predicted_counts.tolist())
-
                 loss = mse_loss(predicted_counts, target_counts)
 
                 loss.backward()
@@ -86,8 +84,7 @@ class GridCounterTrainer(Trainer):
 
         print("Training complete.")
 
-        torch.save(self.model.state_dict(), self.save_filepath)
-        self.already_trained = True
+        torch.save(self.model.state_dict(), self.get_save_filepath())
 
     def demonstrate(self):
         device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
@@ -100,7 +97,8 @@ class GridCounterTrainer(Trainer):
         grids, target_counts = self.generate_training_set(1)
         grids = grids.to(device)
 
-        print(grids)
+        print("Grid:")
+        Visualiser.visualise(grids[0].cpu().squeeze())
         print("Target count:", target_counts.tolist()[0])
 
         with torch.no_grad():
@@ -108,4 +106,4 @@ class GridCounterTrainer(Trainer):
         print("Predicted count:", predicted_counts.tolist()[0])
 
         print("Mask memory:")
-        print(mask_memory.view(self.grid_size, self.grid_size))
+        Visualiser.visualise(mask_memory.view(self.grid_size, self.grid_size).cpu())
