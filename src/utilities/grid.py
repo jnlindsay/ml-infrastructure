@@ -17,6 +17,14 @@ class GridFactory():
     def generate_random(self, scale=1, offset=0):
         return torch.rand(self.num_rows, self.num_cols) * scale + offset
 
+    def generate_random_symmetrical(self, scale=1, offset=0):
+        half_cols = (self.num_cols + 1) // 2
+        left_half = torch.rand(self.num_rows, half_cols) * scale + offset
+        left_half_flippable = left_half if self.num_cols % 2 == 0 else left_half[:, :-1]
+        right_half = torch.flip(left_half_flippable, dims=[1])
+        grid = torch.cat([left_half, right_half], dim=1)
+        return grid
+
     def generate_random_spaced_dots(self, num_dots=2):
         grid = self.generate_empty()
 
