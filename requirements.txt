@@ -1,5 +1,7 @@
 torch
 torchvision
+stable-baselines3
+gym
 ipykernel
 graphviz
 torchviz
