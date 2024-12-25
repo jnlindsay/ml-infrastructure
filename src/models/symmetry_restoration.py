@@ -1,13 +1,16 @@
 import numpy as np
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.env_checker import check_env
 import gymnasium as gym
 from gymnasium import spaces
 from utilities.visualiser import Visualiser
+from trainers.grid_autoencoder_trainer import GridAutoencoderTrainer
+from sklearn.metrics import r2_score
+import torch
 
 class SymmetryRestorationEnv(gym.Env):
-    def __init__(self, grid_size=(10, 10), max_steps=50, render_mode=None):
+    def __init__(self, grid_size=(10, 10), max_steps=1000, render_mode=None):
         super(SymmetryRestorationEnv, self).__init__()
         self.grid_size = grid_size
         self.max_steps = max_steps
@@ -15,7 +18,7 @@ class SymmetryRestorationEnv(gym.Env):
         self.render_mode = render_mode
 
         # State space: The grid itself, a 10x10 grayscale matrix
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(grid_size[0] * grid_size[1],), dtype=np.float32)  # Flattened space
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(32,), dtype=np.float32)  # Flattened space
 
         # Action space: (x, y, up/down)
         self.action_space = spaces.MultiDiscrete([grid_size[0], grid_size[1], 2])  # x, y, direction
@@ -23,18 +26,80 @@ class SymmetryRestorationEnv(gym.Env):
         # Initialize grid and CNN autoencoder loss function
         self.grid = np.random.uniform(0, 1, size=grid_size).astype(np.float32)
         self.autoencoder = self._load_pretrained_autoencoder()
+        self.autoencoder_trainer = self._load_pretrained_autoencoder_trainer()
+
+    def _load_pretrained_autoencoder_trainer(self):
+        training_phases = [
+            GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 100),
+            GridAutoencoderTrainer.TrainingPhase("random_symmetrical", 1000, 100)
+        ]
+
+        grid_autoencoder_trainer = GridAutoencoderTrainer(self.grid_size, self.grid_size)
+        grid_autoencoder_trainer.train(training_phases, force_retrain=False)
+
+        return grid_autoencoder_trainer
+
 
     def _load_pretrained_autoencoder(self):
         """
-        Mocked CNN autoencoder loss function. Replace this with the actual pretrained model.
+        CNN autoencoder loss function. Replace this with the actual pretrained model.
         """
-        return lambda grid: np.mean((grid - grid[::-1, ::-1])**2)  # Mock symmetry loss
+
+        # TODO: do we need a better way to specify models?
+        training_phases = [
+            GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 100),
+            GridAutoencoderTrainer.TrainingPhase("random_symmetrical", 1000, 100)
+        ]
+
+        # TODO: rename to .train_or_load() or something
+        grid_autoencoder_trainer = GridAutoencoderTrainer(self.grid_size, self.grid_size)
+        grid_autoencoder_trainer.train(training_phases, force_retrain=False)
+
+        def loss_calculator(grid):
+            grid_tensor = torch.from_numpy(grid).unsqueeze(0).unsqueeze(0)
+            reconstructed_grid = grid_autoencoder_trainer.model.forward(grid_tensor)
+
+            return r2_score(
+                reconstructed_grid.squeeze().squeeze().detach().numpy(),
+                grid_tensor.squeeze().squeeze().detach().numpy()
+            )
+
+        def calculate_symmetry(grid):
+            """
+            Calculate the symmetry of a 2D grid about the vertical axis using R² score.
+
+            Args:
+                grid (np.ndarray): A 2D numpy array with values in the range [0, 1].
+
+            Returns:
+                float: Symmetry score (R²) in the range [-inf, 1]. Higher means more symmetrical.
+            """
+            if not isinstance(grid, np.ndarray):
+                raise ValueError("Input must be a numpy array.")
+            if grid.ndim != 2:
+                raise ValueError("Input grid must be 2D.")
+            if not np.all((0 <= grid) & (grid <= 1)):
+                raise ValueError("All grid values must lie in the range [0, 1].")
+
+            # Reflect the grid about the vertical axis
+            reflected_grid = grid[:, ::-1]
+
+            # Flatten both grids to 1D for comparison
+            original_flat = grid.flatten()
+            reflected_flat = reflected_grid.flatten()
+
+            # Calculate R² score
+            symmetry_score = r2_score(original_flat, reflected_flat)
+            return (symmetry_score + 3) / 4
+
+        return calculate_symmetry
 
     def reset(self, seed=None, **kwargs):
         """Reset the environment to start a new episode."""
         self.np_random, seed = gym.utils.seeding.np_random(seed)  # Set the seed for reproducibility
         self.grid = np.random.uniform(0, 1, size=self.grid_size).astype(np.float32)
         self.current_step = 0
+
         return self.grid.flatten(), {}  # Flatten the grid to 1D vector
 
     def step(self, action):
@@ -50,8 +115,8 @@ class SymmetryRestorationEnv(gym.Env):
         self.current_step += 1
 
         # Calculate reward and determine if episode is done
-        loss = self.autoencoder(self.grid)
-        reward = -loss  # Lower loss means better symmetry
+        reward = self.autoencoder(self.grid)
+        loss = -reward
         done = False
         terminated = False
         truncated = False
@@ -81,6 +146,7 @@ check_env(env)
 
 # Wrap the environment for PPO
 env = DummyVecEnv([lambda: env])
+env = VecNormalize(env, norm_reward=True)
 
 # Define and train the PPO agent
 model = PPO("MlpPolicy", env, verbose=1)
@@ -92,6 +158,7 @@ max_steps = env.get_attr("max_steps")[0]
 for step in range(max_steps):  # Use max_steps directly here
     action, _states = model.predict(obs)
     obs, reward, done, truncated = env.step(action)
+    print(reward)
     env.render()
     if done:
         print(f"Episode finished with reward: {reward}")
