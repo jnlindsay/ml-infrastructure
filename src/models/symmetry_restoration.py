@@ -195,12 +195,12 @@ if __name__ == "__main__":
     env_config = {
         'height': 10,
         'width': 10,
-        'perfect_reward': 1000.0,
+        'perfect_reward': 10000.0,
         'step_penalty': -1.0,
         'partial_reward_weight': 5.0,
-        'max_steps': 1000,
+        'max_steps': 100,
         'redundant_move_penalty': -2.0,
-        'learning_total_timesteps': 1000000
+        'learning_total_timesteps': 5000000
     }
 
     model = train_agent(env_config, load_if_exists=True)
