@@ -8,6 +8,9 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 import time
 from sklearn.metrics import r2_score
+import hashlib
+import json
+import os
 
 class SymmetryExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
@@ -62,6 +65,15 @@ class SymmetryEnv(gym.Env):
             self.config['height'] * self.config['width'],
             2
         ])
+
+    @staticmethod
+    def get_config_hash(config):
+        config_str = json.dumps(config, sort_keys=True)
+        return hashlib.sha256(config_str.encode()).hexdigest()[:16]
+
+    @staticmethod
+    def get_model_path(config):
+        return f"saved_models/model_{SymmetryEnv.get_config_hash(config)}.zip"
 
     def calculate_symmetry_score(self):
         if not isinstance(self.grid, np.ndarray):
@@ -123,8 +135,16 @@ class SymmetryEnv(gym.Env):
 
         return self.grid, reward, terminated, False, {}
 
-def train_agent(env_config=None):
+def train_agent(env_config=None, load_if_exists=True):
+    print("Provided environment configuration:")
+    print(env_config)
+
     env = DummyVecEnv([lambda: SymmetryEnv(env_config)])
+    model_path = SymmetryEnv.get_model_path(env_config)
+
+    if load_if_exists and os.path.exists(model_path):
+        print(f"Loading existing model from {model_path}")
+        return PPO.load(model_path, env=env)
 
     policy_kwargs = {
         'features_extractor_class': SymmetryExtractor,
@@ -135,18 +155,12 @@ def train_agent(env_config=None):
     model = PPO(
         'MlpPolicy',
         env,
-        # learning_rate=0.001,
-        # n_steps=2048,
-        # batch_size=64,
-        # n_epochs=10,
-        # gamma=0.99,
-        # ent_coef=0.01,
-        # vf_coef=1.0,
-        # policy_kwargs=policy_kwargs,
         verbose=1
     )
 
-    model.learn(total_timesteps=500000)
+    model.learn(total_timesteps=env_config['learning_total_timesteps'])
+    model.save(model_path)
+    print(f"Model saved to {model_path}")
     return model
 
 def demonstrate_agent(model, env_config=None, episodes=5):
@@ -179,14 +193,15 @@ def demonstrate_agent(model, env_config=None, episodes=5):
 
 if __name__ == "__main__":
     env_config = {
-        'height': 4,
-        'width': 4,
+        'height': 10,
+        'width': 10,
         'perfect_reward': 1000.0,
         'step_penalty': -1.0,
         'partial_reward_weight': 5.0,
-        'max_steps': 100,
-        'redundant_move_penalty': -2.0
+        'max_steps': 1000,
+        'redundant_move_penalty': -2.0,
+        'learning_total_timesteps': 1000000
     }
 
-    model = train_agent(env_config)
+    model = train_agent(env_config, load_if_exists=True)
     demonstrate_agent(model, env_config)
