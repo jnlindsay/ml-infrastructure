@@ -46,7 +46,8 @@ class SymmetryEnv(gym.Env):
             'perfect_reward': 100.0,
             'step_penalty': -1.0,
             'max_steps': 10,
-            'partial_reward_weight': 5.0
+            'partial_reward_weight': 5.0,
+            'redundant_move_penalty': -2.0
         }
         if config:
             self.config.update(config)
@@ -106,8 +107,13 @@ class SymmetryEnv(gym.Env):
         row = pos // self.config['width']
         col = pos % self.config['width']
 
+        redundant = self.grid[row, col] == value
+
         self.grid[row, col] = value
         reward = self.get_reward()
+
+        if redundant:
+            reward += self.config['redundant_move_penalty']
 
         self.steps += 1
         terminated = self.is_symmetric() or self.steps >= self.config['max_steps']
@@ -116,7 +122,6 @@ class SymmetryEnv(gym.Env):
             reward -= self.config['perfect_reward'] * 0.5
 
         return self.grid, reward, terminated, False, {}
-
 
 def train_agent(env_config=None):
     env = DummyVecEnv([lambda: SymmetryEnv(env_config)])
@@ -130,20 +135,19 @@ def train_agent(env_config=None):
     model = PPO(
         'MlpPolicy',
         env,
-        learning_rate=5e-5,
-        n_steps=2048,
-        batch_size=64,
-        n_epochs=10,
-        gamma=0.99,
-        ent_coef=0.01,
-        vf_coef=1.0,
-        policy_kwargs=policy_kwargs,
+        # learning_rate=0.001,
+        # n_steps=2048,
+        # batch_size=64,
+        # n_epochs=10,
+        # gamma=0.99,
+        # ent_coef=0.01,
+        # vf_coef=1.0,
+        # policy_kwargs=policy_kwargs,
         verbose=1
     )
 
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=500000)
     return model
-
 
 def demonstrate_agent(model, env_config=None, episodes=5):
     env = SymmetryEnv(env_config)
@@ -175,12 +179,13 @@ def demonstrate_agent(model, env_config=None, episodes=5):
 
 if __name__ == "__main__":
     env_config = {
-        'height': 3,
+        'height': 4,
         'width': 4,
-        'perfect_reward': 100.0,
+        'perfect_reward': 1000.0,
         'step_penalty': -1.0,
         'partial_reward_weight': 5.0,
-        'max_steps': 15
+        'max_steps': 100,
+        'redundant_move_penalty': -2.0
     }
 
     model = train_agent(env_config)
