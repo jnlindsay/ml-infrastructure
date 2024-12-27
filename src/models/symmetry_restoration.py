@@ -1,207 +1,169 @@
 import numpy as np
-from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from stable_baselines3.common.env_checker import check_env
 import gymnasium as gym
 from gymnasium import spaces
-from utilities.visualiser import Visualiser
-from models.grid_autoencoder import GridEncoderStableBaselines
-from trainers.grid_autoencoder_trainer import GridAutoencoderTrainer
-from sklearn.metrics import r2_score
 import torch
-
-class SymmetryRestorationEnv(gym.Env):
-    def __init__(self, grid_size=(3, 3), max_steps=81, render_mode=None):
-        super(SymmetryRestorationEnv, self).__init__()
-        self.grid_size = grid_size
-        self.max_steps = max_steps
-        self.current_step = 0
-        self.render_mode = render_mode
-
-        # State space: The grid itself, a 10x10 grayscale matrix
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(grid_size[0] * grid_size[1],), dtype=np.float32)  # Flattened space
-
-        # Action space: (x, y, up/down)
-        self.action_space = spaces.MultiDiscrete([grid_size[0], grid_size[1], 2])  # x, y, direction
-
-        # Initialize grid and CNN autoencoder loss function
-        self.grid = np.random.uniform(0, 1, size=grid_size).astype(np.float32)
-        self.autoencoder = self._load_pretrained_autoencoder()
-        self.autoencoder_trainer = self._load_pretrained_autoencoder_trainer()
-
-    def _load_pretrained_autoencoder_trainer(self):
-        training_phases = [
-            GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 100),
-            GridAutoencoderTrainer.TrainingPhase("random_symmetrical", 1000, 100)
-        ]
-
-        grid_autoencoder_trainer = GridAutoencoderTrainer(self.grid_size, self.grid_size)
-        grid_autoencoder_trainer.train(training_phases, force_retrain=False)
-
-        return grid_autoencoder_trainer
+import torch.nn as nn
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+import time
 
 
-    def _load_pretrained_autoencoder(self):
-        """
-        CNN autoencoder loss function. Replace this with the actual pretrained model.
-        """
+class SymmetryExtractor(BaseFeaturesExtractor):
+    def __init__(self, observation_space, features_dim=64):
+        super().__init__(observation_space, features_dim * 2)
 
-        # TODO: do we need a better way to specify models?
-        training_phases = [
-            GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 100),
-            GridAutoencoderTrainer.TrainingPhase("random_symmetrical", 1000, 100)
-        ]
+        self.policy_layers = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(64 * 9, features_dim)
+        )
 
-        # TODO: rename to .train_or_load() or something
-        grid_autoencoder_trainer = GridAutoencoderTrainer(self.grid_size, self.grid_size)
-        grid_autoencoder_trainer.train(training_phases, force_retrain=False)
+        self.value_conv = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(32 * 9, features_dim)
+        )
 
-        def loss_calculator(grid):
-            grid_tensor = torch.from_numpy(grid).unsqueeze(0).unsqueeze(0)
-            reconstructed_grid = grid_autoencoder_trainer.model.forward(grid_tensor)
+    def forward(self, observations):
+        x = observations.view(-1, 1, 3, 3).float()
+        return torch.cat([self.policy_layers(x), self.value_conv(x)], dim=1)
 
-            return r2_score(
-                reconstructed_grid.squeeze().squeeze().detach().numpy(),
-                grid_tensor.squeeze().squeeze().detach().numpy()
-            )
 
-        def calculate_symmetry(grid):
-            """
-            Calculate the symmetry of a 2D grid about the vertical axis using R² score.
+class SymmetryEnv(gym.Env):
+    def __init__(self, config=None):
+        super().__init__()
+        self.config = {
+            'grid_size': 3,
+            'perfect_reward': 100.0,
+            'step_penalty': -1.0,
+            'max_steps': 10,
+            'partial_reward_weight': 5.0
+        }
+        if config:
+            self.config.update(config)
 
-            Args:
-                grid (np.ndarray): A 2D numpy array with values in the range [0, 1].
+        self.observation_space = spaces.Box(
+            low=0, high=1,
+            shape=(self.config['grid_size'], self.config['grid_size']),
+            dtype=np.int8
+        )
 
-            Returns:
-                float: Symmetry score (R²) in the range [-inf, 1]. Higher means more symmetrical.
-            """
-            if not isinstance(grid, np.ndarray):
-                raise ValueError("Input must be a numpy array.")
-            if grid.ndim != 2:
-                raise ValueError("Input grid must be 2D.")
-            if not np.all((0 <= grid) & (grid <= 1)):
-                raise ValueError("All grid values must lie in the range [0, 1].")
+        self.action_space = spaces.MultiDiscrete([
+            self.config['grid_size'] * self.config['grid_size'],
+            2
+        ])
 
-            # Reflect the grid about the vertical axis
-            reflected_grid = grid[:, ::-1]
+    def calculate_symmetry_score(self):
+        left_col = self.grid[:, 0]
+        right_col = self.grid[:, -1]
+        return np.sum(left_col == right_col) / len(left_col)
 
-            # Flatten both grids to 1D for comparison
-            original_flat = grid.flatten()
-            reflected_flat = reflected_grid.flatten()
+    def reset(self, seed=None):
+        super().reset(seed=seed)
+        self.grid = np.random.randint(0, 2, (self.config['grid_size'], self.config['grid_size']), dtype=np.int8)
+        self.steps = 0
+        self.initial_symmetry = self.calculate_symmetry_score()
+        return self.grid, {}
 
-            thingo = grid.tolist()
+    def render(self):
+        pass
 
-            # Calculate R² score
-            symmetry_score = r2_score(original_flat, reflected_flat)
-            return (symmetry_score + 3) / 4
+    def is_symmetric(self):
+        return np.array_equal(self.grid[:, 0], self.grid[:, -1])
 
-        return calculate_symmetry
+    def get_reward(self):
+        if self.is_symmetric():
+            return self.config['perfect_reward']
 
-    def reset(self, seed=None, **kwargs):
-        """Reset the environment to start a new episode."""
-        self.np_random, seed = gym.utils.seeding.np_random(seed)  # Set the seed for reproducibility
-        self.grid = np.random.choice([0, 1], size=self.grid_size).astype(np.float32)
-        self.current_step = 0
-
-        return self.grid.flatten(), {}  # Flatten the grid to 1D vector
+        current_symmetry = self.calculate_symmetry_score()
+        symmetry_improvement = current_symmetry - self.initial_symmetry
+        return symmetry_improvement * self.config['partial_reward_weight'] + self.config['step_penalty']
 
     def step(self, action):
-        """
-        Perform the action: modify the grid based on the (x, y, up/down) action.
-        """
-        x, y, direction = action
+        pos, value = action
+        row, col = pos // self.config['grid_size'], pos % self.config['grid_size']
 
-        cell_original_state = self.grid[x, y].copy()
+        self.grid[row, col] = value
+        reward = self.get_reward()
 
-        if direction == 0: # uhhhh doesn't this bias towards non-zero numbers?
-            self.grid[x, y] = max(0, self.grid[x, y] - 1)
-        else:
-            self.grid[x, y] = min(1, self.grid[x, y] + 1)
+        self.steps += 1
+        terminated = self.is_symmetric() or self.steps >= self.config['max_steps']
 
-        self.current_step += 1
+        if terminated and not self.is_symmetric():
+            reward -= self.config['perfect_reward'] * 0.5
 
-        # Calculate reward and determine if episode is done
-        symmetricalness = self.autoencoder(self.grid)
-        done = False
-        terminated = False
-        truncated = False
+        return self.grid, reward, terminated, False, {}
 
-        print("Symmetricalness is:", symmetricalness)
 
-        reward_payout = 10
+def train_agent(env_config=None):
+    env = DummyVecEnv([lambda: SymmetryEnv(env_config)])
 
-        if symmetricalness == 1:
-            # reward = reward_payout if symmetricalness > 0.90 else -1
-            # reward  = (symmetricalness * 2 - 1) ** 3
-            reward = reward_payout
-        # elif cell_original_state == self.grid[x, y]:
-        #     reward = -10
-        else:
-            reward = -1
-
-        if self.current_step >= self.max_steps or reward >= reward_payout:
-            done = True  # End the episode after max_steps
-            terminated = True  # Explicitly mark it as terminated when max steps reached
-
-        return self.grid.flatten(), reward.__float__(), terminated, truncated, {}  # Return 5 values
-
-    def render(self, mode=None):
-        """Visualize the grid."""
-        if mode is None:
-            mode = self.render_mode  # Use the default render_mode if not provided
-        if mode == "human":
-            Visualiser.visualise(self.grid)
-        elif mode == "ansi":
-            return str(self.grid)  # Return the grid as a string
-        elif mode == "rgb_array":
-            raise NotImplementedError("rgb_array mode is not implemented.")
-        else:
-            raise ValueError(f"Unsupported render mode: {mode}")
-
-# Define and check the environment
-env = SymmetryRestorationEnv(render_mode="human")
-check_env(env)
-
-# Wrap the environment for PPO
-env = DummyVecEnv([lambda: env])
-# env = VecNormalize(env)
-
-training_phases = [
-    GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 100),
-    GridAutoencoderTrainer.TrainingPhase("random_symmetrical", 1000, 100)
-]
-
-grid_autoencoder_trainer = GridAutoencoderTrainer(10, 10)
-grid_autoencoder_trainer.train(training_phases, force_retrain=False)
-
-# use grid autoencoder
-policy_kwargs = {
-    "features_extractor_class": GridEncoderStableBaselines,
-    "features_extractor_kwargs": {
-        "pretrained_model": grid_autoencoder_trainer.model,
-        "features_dim": 128
+    policy_kwargs = {
+        'features_extractor_class': SymmetryExtractor,
+        'features_extractor_kwargs': {'features_dim': 64},
+        'net_arch': dict(pi=[64], vf=[64])
     }
-}
 
-# Define and train the PPO agent
-# model = PPO("MlpPolicy", env, policy_kwargs=policy_kwargs, verbose=1)
-model = PPO(
-    "MlpPolicy",
-    env,
-    batch_size=64,
-    learning_rate=0.003,
-    verbose=1
-)
-model.learn(total_timesteps=100000)
+    model = PPO(
+        'MlpPolicy',
+        env,
+        learning_rate=5e-5,
+        n_steps=2048,
+        batch_size=64,
+        n_epochs=10,
+        gamma=0.99,
+        ent_coef=0.01,
+        vf_coef=1.0,
+        policy_kwargs=policy_kwargs,
+        verbose=1
+    )
 
-# Test the trained agent
-obs = env.reset()
-max_steps = env.get_attr("max_steps")[0]
-for step in range(max_steps):  # Use max_steps directly here
-    action, _states = model.predict(obs)
-    obs, reward, done, truncated = env.step(action)
-    print("Reward has been turned into:", reward)
-    env.render()
-    if done:
-        print(f"Episode finished with reward: {reward}")
-        break
+    model.learn(total_timesteps=100000)
+    return model
+
+
+def demonstrate_agent(model, env_config=None, episodes=5):
+    env = SymmetryEnv(env_config)
+
+    for episode in range(episodes):
+        print(f"\nEpisode {episode + 1}")
+        obs, _ = env.reset()
+        print(f"Initial grid:\n{obs}")
+        print(f"Initial symmetry: {env.calculate_symmetry_score():.2f}")
+
+        done = False
+        total_reward = 0
+
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, _, _ = env.step(action)
+            total_reward += reward
+            done = terminated
+
+            print(f"\nAction: pos={action[0]}, val={action[1]}")
+            print(f"Grid:\n{obs}")
+            print(f"Symmetry: {env.calculate_symmetry_score():.2f}")
+            print(f"Reward: {reward:.2f}")
+
+            env.render()
+            time.sleep(0.5)
+
+        print(f"Total reward: {total_reward:.2f}")
+        print(f"Symmetric: {env.is_symmetric()}")
+
+
+if __name__ == "__main__":
+    env_config = {
+        'perfect_reward': 100.0,
+        'step_penalty': -1.0,
+        'partial_reward_weight': 5.0,
+        'max_steps': 15
+    }
+
+    model = train_agent(env_config)
+    demonstrate_agent(model, env_config)
