@@ -7,11 +7,14 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 import time
-
+from sklearn.metrics import r2_score
 
 class SymmetryExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
         super().__init__(observation_space, features_dim * 2)
+
+        # Get grid dimensions from observation space
+        self.height, self.width = observation_space.shape
 
         self.policy_layers = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
@@ -19,18 +22,18 @@ class SymmetryExtractor(BaseFeaturesExtractor):
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(64 * 9, features_dim)
+            nn.Linear(64 * self.height * self.width, features_dim)
         )
 
         self.value_conv = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(32 * 9, features_dim)
+            nn.Linear(32 * self.height * self.width, features_dim)
         )
 
     def forward(self, observations):
-        x = observations.view(-1, 1, 3, 3).float()
+        x = observations.view(-1, 1, self.height, self.width).float()
         return torch.cat([self.policy_layers(x), self.value_conv(x)], dim=1)
 
 
@@ -38,7 +41,8 @@ class SymmetryEnv(gym.Env):
     def __init__(self, config=None):
         super().__init__()
         self.config = {
-            'grid_size': 3,
+            'height': 3,
+            'width': 4,
             'perfect_reward': 100.0,
             'step_penalty': -1.0,
             'max_steps': 10,
@@ -49,23 +53,36 @@ class SymmetryEnv(gym.Env):
 
         self.observation_space = spaces.Box(
             low=0, high=1,
-            shape=(self.config['grid_size'], self.config['grid_size']),
+            shape=(self.config['height'], self.config['width']),
             dtype=np.int8
         )
 
         self.action_space = spaces.MultiDiscrete([
-            self.config['grid_size'] * self.config['grid_size'],
+            self.config['height'] * self.config['width'],
             2
         ])
 
     def calculate_symmetry_score(self):
-        left_col = self.grid[:, 0]
-        right_col = self.grid[:, -1]
-        return np.sum(left_col == right_col) / len(left_col)
+        if not isinstance(self.grid, np.ndarray):
+            raise ValueError("Grid must be a numpy array")
+        if self.grid.ndim != 2:
+            raise ValueError("Grid must be 2D")
+
+        reflected_grid = self.grid[:, ::-1]
+        original_flat = self.grid.flatten()
+        reflected_flat = reflected_grid.flatten()
+
+        symmetry_score = r2_score(original_flat, reflected_flat)
+
+        return symmetry_score
 
     def reset(self, seed=None):
         super().reset(seed=seed)
-        self.grid = np.random.randint(0, 2, (self.config['grid_size'], self.config['grid_size']), dtype=np.int8)
+        self.grid = np.random.randint(
+            0, 2,
+            (self.config['height'], self.config['width']),
+            dtype=np.int8
+        )
         self.steps = 0
         self.initial_symmetry = self.calculate_symmetry_score()
         return self.grid, {}
@@ -74,7 +91,7 @@ class SymmetryEnv(gym.Env):
         pass
 
     def is_symmetric(self):
-        return np.array_equal(self.grid[:, 0], self.grid[:, -1])
+        return self.calculate_symmetry_score() == 1
 
     def get_reward(self):
         if self.is_symmetric():
@@ -86,7 +103,8 @@ class SymmetryEnv(gym.Env):
 
     def step(self, action):
         pos, value = action
-        row, col = pos // self.config['grid_size'], pos % self.config['grid_size']
+        row = pos // self.config['width']
+        col = pos % self.config['width']
 
         self.grid[row, col] = value
         reward = self.get_reward()
@@ -149,8 +167,6 @@ def demonstrate_agent(model, env_config=None, episodes=5):
             print(f"Grid:\n{obs}")
             print(f"Symmetry: {env.calculate_symmetry_score():.2f}")
             print(f"Reward: {reward:.2f}")
-
-            env.render()
             time.sleep(0.5)
 
         print(f"Total reward: {total_reward:.2f}")
@@ -159,6 +175,8 @@ def demonstrate_agent(model, env_config=None, episodes=5):
 
 if __name__ == "__main__":
     env_config = {
+        'height': 3,
+        'width': 4,
         'perfect_reward': 100.0,
         'step_penalty': -1.0,
         'partial_reward_weight': 5.0,
