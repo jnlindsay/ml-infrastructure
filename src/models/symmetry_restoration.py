@@ -5,12 +5,13 @@ from stable_baselines3.common.env_checker import check_env
 import gymnasium as gym
 from gymnasium import spaces
 from utilities.visualiser import Visualiser
+from models.grid_autoencoder import GridEncoderStableBaselines
 from trainers.grid_autoencoder_trainer import GridAutoencoderTrainer
 from sklearn.metrics import r2_score
 import torch
 
 class SymmetryRestorationEnv(gym.Env):
-    def __init__(self, grid_size=(10, 10), max_steps=1000, render_mode=None):
+    def __init__(self, grid_size=(3, 3), max_steps=81, render_mode=None):
         super(SymmetryRestorationEnv, self).__init__()
         self.grid_size = grid_size
         self.max_steps = max_steps
@@ -18,7 +19,7 @@ class SymmetryRestorationEnv(gym.Env):
         self.render_mode = render_mode
 
         # State space: The grid itself, a 10x10 grayscale matrix
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(32,), dtype=np.float32)  # Flattened space
+        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(grid_size[0] * grid_size[1],), dtype=np.float32)  # Flattened space
 
         # Action space: (x, y, up/down)
         self.action_space = spaces.MultiDiscrete([grid_size[0], grid_size[1], 2])  # x, y, direction
@@ -88,6 +89,8 @@ class SymmetryRestorationEnv(gym.Env):
             original_flat = grid.flatten()
             reflected_flat = reflected_grid.flatten()
 
+            thingo = grid.tolist()
+
             # Calculate R² score
             symmetry_score = r2_score(original_flat, reflected_flat)
             return (symmetry_score + 3) / 4
@@ -97,7 +100,7 @@ class SymmetryRestorationEnv(gym.Env):
     def reset(self, seed=None, **kwargs):
         """Reset the environment to start a new episode."""
         self.np_random, seed = gym.utils.seeding.np_random(seed)  # Set the seed for reproducibility
-        self.grid = np.random.uniform(0, 1, size=self.grid_size).astype(np.float32)
+        self.grid = np.random.choice([0, 1], size=self.grid_size).astype(np.float32)
         self.current_step = 0
 
         return self.grid.flatten(), {}  # Flatten the grid to 1D vector
@@ -107,21 +110,36 @@ class SymmetryRestorationEnv(gym.Env):
         Perform the action: modify the grid based on the (x, y, up/down) action.
         """
         x, y, direction = action
+
+        cell_original_state = self.grid[x, y].copy()
+
         if direction == 0: # uhhhh doesn't this bias towards non-zero numbers?
-            self.grid[x, y] = max(0, self.grid[x, y] - 0.1)  # Subtract 0.1
+            self.grid[x, y] = max(0, self.grid[x, y] - 1)
         else:
-            self.grid[x, y] = min(1, self.grid[x, y] + 0.1)  # Add 0.1
+            self.grid[x, y] = min(1, self.grid[x, y] + 1)
 
         self.current_step += 1
 
         # Calculate reward and determine if episode is done
-        reward = self.autoencoder(self.grid)
-        loss = -reward
+        symmetricalness = self.autoencoder(self.grid)
         done = False
         terminated = False
         truncated = False
 
-        if self.current_step >= self.max_steps:
+        print("Symmetricalness is:", symmetricalness)
+
+        reward_payout = 10
+
+        if symmetricalness == 1:
+            # reward = reward_payout if symmetricalness > 0.90 else -1
+            # reward  = (symmetricalness * 2 - 1) ** 3
+            reward = reward_payout
+        # elif cell_original_state == self.grid[x, y]:
+        #     reward = -10
+        else:
+            reward = -1
+
+        if self.current_step >= self.max_steps or reward >= reward_payout:
             done = True  # End the episode after max_steps
             terminated = True  # Explicitly mark it as terminated when max steps reached
 
@@ -146,11 +164,35 @@ check_env(env)
 
 # Wrap the environment for PPO
 env = DummyVecEnv([lambda: env])
-env = VecNormalize(env, norm_reward=True)
+# env = VecNormalize(env)
+
+training_phases = [
+    GridAutoencoderTrainer.TrainingPhase("random_lines", 1000, 100),
+    GridAutoencoderTrainer.TrainingPhase("random_symmetrical", 1000, 100)
+]
+
+grid_autoencoder_trainer = GridAutoencoderTrainer(10, 10)
+grid_autoencoder_trainer.train(training_phases, force_retrain=False)
+
+# use grid autoencoder
+policy_kwargs = {
+    "features_extractor_class": GridEncoderStableBaselines,
+    "features_extractor_kwargs": {
+        "pretrained_model": grid_autoencoder_trainer.model,
+        "features_dim": 128
+    }
+}
 
 # Define and train the PPO agent
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=50000)
+# model = PPO("MlpPolicy", env, policy_kwargs=policy_kwargs, verbose=1)
+model = PPO(
+    "MlpPolicy",
+    env,
+    batch_size=64,
+    learning_rate=0.003,
+    verbose=1
+)
+model.learn(total_timesteps=100000)
 
 # Test the trained agent
 obs = env.reset()
@@ -158,7 +200,7 @@ max_steps = env.get_attr("max_steps")[0]
 for step in range(max_steps):  # Use max_steps directly here
     action, _states = model.predict(obs)
     obs, reward, done, truncated = env.step(action)
-    print(reward)
+    print("Reward has been turned into:", reward)
     env.render()
     if done:
         print(f"Episode finished with reward: {reward}")
