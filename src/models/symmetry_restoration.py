@@ -74,7 +74,7 @@ class SymmetryEnv(gym.Env):
 
         symmetry_score = r2_score(original_flat, reflected_flat)
 
-        return symmetry_score
+        return (symmetry_score + 3) / 4
 
     def reset(self, seed=None):
         super().reset(seed=seed)
