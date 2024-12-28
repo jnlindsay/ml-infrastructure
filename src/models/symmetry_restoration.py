@@ -194,16 +194,16 @@ def demonstrate_agent(model, env_config=None, episodes=5):
 
 if __name__ == "__main__":
     env_config = {
-        'height': 10,
-        'width': 10,
-        'perfect_reward': 10000.0,
+        'height': 3,
+        'width': 3,
+        'perfect_reward': 1000.0,
         'step_penalty': -1.0,
-        'partial_reward_weight': 1000.0,
-        'max_steps': 1000,
-        'redundant_move_penalty': -100.0,
-        'learning_total_timesteps': 1_000_000,
+        'partial_reward_weight': 10.0,
+        'max_steps': 10,
+        'redundant_move_penalty': -2.0,
+        'learning_total_timesteps': 100_000,
         'training_ent_coef': 0.1
     }
 
-    model = train_agent(env_config, load_if_exists=True)
+    model = train_agent(env_config, load_if_exists=False)
     demonstrate_agent(model, env_config)
