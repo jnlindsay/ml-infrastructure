@@ -198,10 +198,10 @@ if __name__ == "__main__":
         'width': 10,
         'perfect_reward': 10000.0,
         'step_penalty': -1.0,
-        'partial_reward_weight': 10.0,
+        'partial_reward_weight': 1000.0,
         'max_steps': 1000,
-        'redundant_move_penalty': -10.0,
-        'learning_total_timesteps': 500_000,
+        'redundant_move_penalty': -100.0,
+        'learning_total_timesteps': 1_000_000,
         'training_ent_coef': 0.1
     }
 
