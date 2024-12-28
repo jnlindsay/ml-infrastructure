@@ -124,6 +124,7 @@ class SymmetryEnv(gym.Env):
             symmetry_improvement = self.curr_symmetry - self.prev_symmetry
         else:
             symmetry_improvement = 0
+
         return symmetry_improvement * self.config['partial_reward_weight'] + self.config['step_penalty']
 
     def step(self, action):
