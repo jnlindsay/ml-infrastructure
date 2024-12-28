@@ -208,8 +208,8 @@ if __name__ == "__main__":
         'perfect_reward': 1000.0,
         'step_penalty': -1.0,
         'partial_reward_weight': 10.0,
-        'max_steps': 10,
-        'redundant_move_penalty': -2.0,
+        'max_steps': 16,
+        'redundant_move_penalty': -10.0,
         'learning_total_timesteps': 100_000,
         'training_ent_coef': 0.1
     }
