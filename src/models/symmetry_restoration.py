@@ -71,6 +71,7 @@ class SymmetryEnv(gym.Env):
             2
         ])
 
+        self.curr_symmetry = None
         self.prev_symmetry = None
         self.visited_pos = set()
 
@@ -83,8 +84,7 @@ class SymmetryEnv(gym.Env):
     def get_model_path(config):
         return f"saved_models/model_{SymmetryEnv.get_config_hash(config)}.zip"
 
-    @property
-    def curr_symmetry(self) -> float:
+    def get_curr_symmetry(self) -> float:
         if not isinstance(self.grid, np.ndarray):
             raise ValueError("Grid must be a numpy array")
         if self.grid.ndim != 2:
@@ -106,7 +106,8 @@ class SymmetryEnv(gym.Env):
             dtype=np.int8
         )
         self.steps = 0
-        self.prev_symmetry = None
+        self.curr_symmetry = self.get_curr_symmetry()
+        self.prev_symmetry = self.curr_symmetry
         self.visited_pos = set()
         return self.grid, {}
 
@@ -120,7 +121,7 @@ class SymmetryEnv(gym.Env):
         if self.is_symmetric():
             return self.config['perfect_reward']
 
-        if self.prev_symmetry is not None:
+        if self.prev_symmetry:
             symmetry_improvement = self.curr_symmetry - self.prev_symmetry
         else:
             symmetry_improvement = 0
@@ -128,20 +129,19 @@ class SymmetryEnv(gym.Env):
         return symmetry_improvement * self.config['partial_reward_weight'] + self.config['step_penalty']
 
     def step(self, action):
-        pos, value = action
+        pos, new_value = action
         row = pos // self.config['width']
         col = pos % self.config['width']
 
         revisited = pos in self.visited_pos
         self.visited_pos.add(pos)
 
-        redundant = self.grid[row, col] == value
+        redundant = self.grid[row, col] == new_value
 
-        self.grid[row, col] = value
+        self.grid[row, col] = new_value
 
-        # calculate symmetry and reward
+        self.curr_symmetry = self.get_curr_symmetry()
         reward = self.get_reward()
-        self.prev_symmetry = self.curr_symmetry
 
         if redundant:
             reward += self.config['redundant_move_penalty']
@@ -160,14 +160,16 @@ class SymmetryEnv(gym.Env):
         if terminated and not self.is_symmetric():
             reward -= self.config['perfect_reward'] * 0.5
 
+        self.prev_symmetry = self.curr_symmetry
+
         return self.grid, reward, terminated, False, {}
 
-def train_agent(env_config=None, load_if_exists=True, loggers=None):
+def train_agent(hashed_config=None, unhashed_config=None, load_if_exists=True, loggers=None):
     print("Provided environment configuration:")
-    print(env_config)
+    print(hashed_config)
 
-    env = DummyVecEnv([lambda: SymmetryEnv(env_config)])
-    model_path = SymmetryEnv.get_model_path(env_config)
+    env = DummyVecEnv([lambda: SymmetryEnv(hashed_config)])
+    model_path = SymmetryEnv.get_model_path(hashed_config)
 
     if load_if_exists and os.path.exists(model_path):
         print(f"Loading existing model from {model_path}")
@@ -184,23 +186,24 @@ def train_agent(env_config=None, load_if_exists=True, loggers=None):
         model = PPO(
             'MlpPolicy',
             env,
-            ent_coef=env_config['training_ent_coef'],
-            learning_rate=env_config['learning_rate'],
+            ent_coef=hashed_config['training_ent_coef'],
+            learning_rate=hashed_config['learning_rate'],
             verbose=2
         )
 
-        mlflow.log_params(env_config)
+        mlflow.log_params(hashed_config)
+        mlflow.log_params(unhashed_config)
 
         if loggers:
             model.set_logger(loggers)
 
-        model.learn(total_timesteps=env_config['learning_total_timesteps'])
+        model.learn(total_timesteps=hashed_config['learning_total_timesteps'])
         model.save(model_path)
         print(f"Model saved to {model_path}")
         return model
 
-def demonstrate_agent(model, env_config=None, episodes=5):
-    env = SymmetryEnv(env_config)
+def demonstrate_agent(model, hashed_config=None, episodes=5):
+    env = SymmetryEnv(hashed_config)
 
     for episode in range(episodes):
         print(f"\n----------------------------------")
