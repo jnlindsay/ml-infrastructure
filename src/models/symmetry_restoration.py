@@ -240,6 +240,15 @@ class MLflowOutputFormat(KVWriter):
             if excluded is not None and "mlflow" in excluded:
                 continue
 
+            if key in [
+                'time/iterations',
+                'time/time_elapsed',
+                'time/total_timesteps',
+                'train/clip_range',
+                'train/n_updates'
+            ]:
+                continue
+
             if isinstance(value, np.ScalarType):
                 if not isinstance(value, str):
                     mlflow.log_metric(key, value, step)
