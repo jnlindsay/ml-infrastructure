@@ -188,6 +188,8 @@ def train_agent(env_config=None, load_if_exists=True, loggers=None):
             verbose=2
         )
 
+        mlflow.log_params(env_config)
+
         if loggers:
             model.set_logger(loggers)
 
