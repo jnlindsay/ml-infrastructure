@@ -228,18 +228,20 @@ class MLflowOutputFormat(KVWriter):
                 if not isinstance(value, str):
                     mlflow.log_metric(key, value, step)
 
-
 if __name__ == "__main__":
+    HEIGHT = 4
+    WIDTH = 4
+
     env_config = {
-        'height': 3,
-        'width': 3,
-        'perfect_reward': 1000.0,
+        'height': HEIGHT,
+        'width': WIDTH,
+        'perfect_reward': 10000.0,
         'step_penalty': -1.0,
         'partial_reward_weight': 10.0,
-        'max_steps': 16,
-        'redundant_move_penalty': -10.0,
+        'max_steps': (HEIGHT * WIDTH) / 2,
+        'redundant_move_penalty': 0,
         'learning_total_timesteps': 200_000,
-        'training_ent_coef': 0.01
+        'training_ent_coef': 0.1
     }
 
     loggers = Logger(
@@ -247,5 +249,5 @@ if __name__ == "__main__":
         output_formats=[HumanOutputFormat(sys.stdout), MLflowOutputFormat()],
     )
 
-    model = train_agent(env_config, load_if_exists=False, loggers=loggers)
+    model = train_agent(env_config, load_if_exists=True, loggers=loggers)
     demonstrate_agent(model, env_config)
