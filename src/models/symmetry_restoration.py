@@ -6,11 +6,15 @@ import torch.nn as nn
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.logger import HumanOutputFormat, KVWriter, Logger
 import time
 from sklearn.metrics import r2_score
 import hashlib
 import json
 import os
+import sys
+from typing import Any, Dict, Tuple, Union
+import mlflow
 
 class SymmetryExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
@@ -144,7 +148,7 @@ class SymmetryEnv(gym.Env):
 
         return self.grid, reward, terminated, False, {}
 
-def train_agent(env_config=None, load_if_exists=True):
+def train_agent(env_config=None, load_if_exists=True, loggers=None):
     print("Provided environment configuration:")
     print(env_config)
 
@@ -161,17 +165,22 @@ def train_agent(env_config=None, load_if_exists=True):
         'net_arch': dict(pi=[64], vf=[64])
     }
 
-    model = PPO(
-        'MlpPolicy',
-        env,
-        ent_coef=env_config['training_ent_coef'],
-        verbose=1
-    )
+    mlflow.set_tracking_uri(uri="http://localhost:8080")
+    with mlflow.start_run():
+        model = PPO(
+            'MlpPolicy',
+            env,
+            ent_coef=env_config['training_ent_coef'],
+            verbose=2
+        )
 
-    model.learn(total_timesteps=env_config['learning_total_timesteps'])
-    model.save(model_path)
-    print(f"Model saved to {model_path}")
-    return model
+        if loggers:
+            model.set_logger(loggers)
+
+        model.learn(total_timesteps=env_config['learning_total_timesteps'])
+        model.save(model_path)
+        print(f"Model saved to {model_path}")
+        return model
 
 def demonstrate_agent(model, env_config=None, episodes=5):
     env = SymmetryEnv(env_config)
@@ -200,6 +209,25 @@ def demonstrate_agent(model, env_config=None, episodes=5):
         print(f"Total reward: {total_reward:.2f}")
         print(f"Symmetric: {env.is_symmetric()}")
 
+class MLflowOutputFormat(KVWriter):
+    def write(
+        self,
+        key_values: Dict[str, Any],
+        key_excluded: Dict[str, Union[str, Tuple[str, ...]]],
+        step: int = 0,
+    ) -> None:
+
+        for (key, value), (_, excluded) in zip(
+            sorted(key_values.items()), sorted(key_excluded.items())
+        ):
+
+            if excluded is not None and "mlflow" in excluded:
+                continue
+
+            if isinstance(value, np.ScalarType):
+                if not isinstance(value, str):
+                    mlflow.log_metric(key, value, step)
+
 
 if __name__ == "__main__":
     env_config = {
@@ -210,9 +238,14 @@ if __name__ == "__main__":
         'partial_reward_weight': 10.0,
         'max_steps': 16,
         'redundant_move_penalty': -10.0,
-        'learning_total_timesteps': 100_000,
-        'training_ent_coef': 0.1
+        'learning_total_timesteps': 200_000,
+        'training_ent_coef': 0.01
     }
 
-    model = train_agent(env_config, load_if_exists=False)
+    loggers = Logger(
+        folder=None,
+        output_formats=[HumanOutputFormat(sys.stdout), MLflowOutputFormat()],
+    )
+
+    model = train_agent(env_config, load_if_exists=False, loggers=loggers)
     demonstrate_agent(model, env_config)
