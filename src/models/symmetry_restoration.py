@@ -43,7 +43,6 @@ class SymmetryExtractor(BaseFeaturesExtractor):
         x = observations.view(-1, 1, self.height, self.width).float()
         return torch.cat([self.policy_layers(x), self.value_conv(x)], dim=1)
 
-
 class SymmetryEnv(gym.Env):
     def __init__(self, config=None):
         super().__init__()
@@ -72,6 +71,7 @@ class SymmetryEnv(gym.Env):
         ])
 
         self.prev_symmetry = None
+        self.visited_pos = set()
 
     @staticmethod
     def get_config_hash(config):
@@ -106,6 +106,7 @@ class SymmetryEnv(gym.Env):
         )
         self.steps = 0
         self.prev_symmetry = None
+        self.visited_pos = set()
         return self.grid, {}
 
     def render(self):
@@ -129,6 +130,9 @@ class SymmetryEnv(gym.Env):
         row = pos // self.config['width']
         col = pos % self.config['width']
 
+        revisited = pos in self.visited_pos
+        self.visited_pos.add(pos)
+
         redundant = self.grid[row, col] == value
 
         self.grid[row, col] = value
@@ -139,9 +143,17 @@ class SymmetryEnv(gym.Env):
 
         if redundant:
             reward += self.config['redundant_move_penalty']
+        if revisited:
+            reward += self.config['revisited_penalty']
 
         self.steps += 1
-        terminated = self.is_symmetric() or self.steps >= self.config['max_steps']
+
+        terminated = False
+        if self.is_symmetric() or self.steps >= self.config['max_steps']:
+            terminated = True
+        if len(self.visited_pos) < self.steps - self.config['allowed_revisits']:
+            terminated = True
+            reward -= self.config['perfect_reward'] * 0.5
 
         if terminated and not self.is_symmetric():
             reward -= self.config['perfect_reward'] * 0.5
@@ -171,6 +183,7 @@ def train_agent(env_config=None, load_if_exists=True, loggers=None):
             'MlpPolicy',
             env,
             ent_coef=env_config['training_ent_coef'],
+            learning_rate=env_config['learning_rate'],
             verbose=2
         )
 
@@ -235,12 +248,15 @@ if __name__ == "__main__":
     env_config = {
         'height': HEIGHT,
         'width': WIDTH,
-        'perfect_reward': 10000.0,
-        'step_penalty': -1.0,
-        'partial_reward_weight': 10.0,
-        'max_steps': (HEIGHT * WIDTH) / 2,
-        'redundant_move_penalty': 0,
-        'learning_total_timesteps': 200_000,
+        'perfect_reward': 100.0,
+        'step_penalty': -0.01,
+        'revisited_penalty': -5.0,
+        'partial_reward_weight': 1.0,
+        'max_steps': HEIGHT * WIDTH * 2,
+        'allowed_revisits': 4,
+        'redundant_move_penalty': -5.0,
+        'learning_total_timesteps': 100_000,
+        'learning_rate': 1e-3,
         'training_ent_coef': 0.1
     }
 
