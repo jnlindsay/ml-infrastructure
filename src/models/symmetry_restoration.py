@@ -43,6 +43,7 @@ class SymmetryExtractor(BaseFeaturesExtractor):
 class SymmetryEnv(gym.Env):
     def __init__(self, config=None):
         super().__init__()
+
         self.config = {
             'height': 3,
             'width': 4,
@@ -66,6 +67,8 @@ class SymmetryEnv(gym.Env):
             2
         ])
 
+        self.prev_symmetry = None
+
     @staticmethod
     def get_config_hash(config):
         config_str = json.dumps(config, sort_keys=True)
@@ -75,7 +78,8 @@ class SymmetryEnv(gym.Env):
     def get_model_path(config):
         return f"saved_models/model_{SymmetryEnv.get_config_hash(config)}.zip"
 
-    def calculate_symmetry_score(self):
+    @property
+    def curr_symmetry(self) -> float:
         if not isinstance(self.grid, np.ndarray):
             raise ValueError("Grid must be a numpy array")
         if self.grid.ndim != 2:
@@ -97,21 +101,23 @@ class SymmetryEnv(gym.Env):
             dtype=np.int8
         )
         self.steps = 0
-        self.initial_symmetry = self.calculate_symmetry_score()
+        self.prev_symmetry = None
         return self.grid, {}
 
     def render(self):
         pass
 
     def is_symmetric(self):
-        return self.calculate_symmetry_score() == 1
+        return self.curr_symmetry == 1
 
     def get_reward(self):
         if self.is_symmetric():
             return self.config['perfect_reward']
 
-        current_symmetry = self.calculate_symmetry_score()
-        symmetry_improvement = current_symmetry - self.initial_symmetry
+        if self.prev_symmetry is not None:
+            symmetry_improvement = self.curr_symmetry - self.prev_symmetry
+        else:
+            symmetry_improvement = 0
         return symmetry_improvement * self.config['partial_reward_weight'] + self.config['step_penalty']
 
     def step(self, action):
@@ -122,7 +128,10 @@ class SymmetryEnv(gym.Env):
         redundant = self.grid[row, col] == value
 
         self.grid[row, col] = value
+
+        # calculate symmetry and reward
         reward = self.get_reward()
+        self.prev_symmetry = self.curr_symmetry
 
         if redundant:
             reward += self.config['redundant_move_penalty']
@@ -171,7 +180,7 @@ def demonstrate_agent(model, env_config=None, episodes=5):
         print(f"\nEpisode {episode + 1}")
         obs, _ = env.reset()
         print(f"Initial grid:\n{obs}")
-        print(f"Initial symmetry: {env.calculate_symmetry_score():.2f}")
+        print(f"Initial symmetry: {env.curr_symmetry:.2f}")
 
         done = False
         total_reward = 0
@@ -184,7 +193,7 @@ def demonstrate_agent(model, env_config=None, episodes=5):
 
             print(f"\nAction: pos={action[0]}, val={action[1]}")
             print(f"Grid:\n{obs}")
-            print(f"Symmetry: {env.calculate_symmetry_score():.2f}")
+            print(f"Symmetry: {env.curr_symmetry:.2f}")
             print(f"Reward: {reward:.2f}")
             time.sleep(0.5)
 
