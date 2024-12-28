@@ -15,6 +15,7 @@ import os
 import sys
 from typing import Any, Dict, Tuple, Union
 import mlflow
+from utilities.visualiser import Visualiser
 
 class SymmetryExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim=64):
@@ -199,9 +200,11 @@ def demonstrate_agent(model, env_config=None, episodes=5):
     env = SymmetryEnv(env_config)
 
     for episode in range(episodes):
+        print(f"\n----------------------------------")
         print(f"\nEpisode {episode + 1}")
         obs, _ = env.reset()
-        print(f"Initial grid:\n{obs}")
+        print(f"Initial grid:")
+        Visualiser.visualise(obs, (2, 2))
         print(f"Initial symmetry: {env.curr_symmetry:.2f}")
 
         done = False
@@ -214,10 +217,10 @@ def demonstrate_agent(model, env_config=None, episodes=5):
             done = terminated
 
             print(f"\nAction: pos={action[0]}, val={action[1]}")
-            print(f"Grid:\n{obs}")
+            print(f"Grid:")
+            Visualiser.visualise(obs, (2, 2))
             print(f"Symmetry: {env.curr_symmetry:.2f}")
             print(f"Reward: {reward:.2f}")
-            time.sleep(0.5)
 
         print(f"Total reward: {total_reward:.2f}")
         print(f"Symmetric: {env.is_symmetric()}")
@@ -240,30 +243,3 @@ class MLflowOutputFormat(KVWriter):
             if isinstance(value, np.ScalarType):
                 if not isinstance(value, str):
                     mlflow.log_metric(key, value, step)
-
-if __name__ == "__main__":
-    HEIGHT = 4
-    WIDTH = 4
-
-    env_config = {
-        'height': HEIGHT,
-        'width': WIDTH,
-        'perfect_reward': 100.0,
-        'step_penalty': -0.01,
-        'revisited_penalty': -5.0,
-        'partial_reward_weight': 1.0,
-        'max_steps': HEIGHT * WIDTH * 2,
-        'allowed_revisits': 4,
-        'redundant_move_penalty': -5.0,
-        'learning_total_timesteps': 100_000,
-        'learning_rate': 1e-3,
-        'training_ent_coef': 0.1
-    }
-
-    loggers = Logger(
-        folder=None,
-        output_formats=[HumanOutputFormat(sys.stdout), MLflowOutputFormat()],
-    )
-
-    model = train_agent(env_config, load_if_exists=True, loggers=loggers)
-    demonstrate_agent(model, env_config)
