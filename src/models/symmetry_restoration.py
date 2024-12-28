@@ -6,13 +6,11 @@ import torch.nn as nn
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
-from stable_baselines3.common.logger import HumanOutputFormat, KVWriter, Logger
-import time
+from stable_baselines3.common.logger import KVWriter
 from sklearn.metrics import r2_score
 import hashlib
 import json
 import os
-import sys
 from typing import Any, Dict, Tuple, Union
 import mlflow
 from utilities.visualiser import Visualiser
