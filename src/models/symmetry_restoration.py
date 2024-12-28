@@ -46,17 +46,7 @@ class SymmetryEnv(gym.Env):
     def __init__(self, config=None):
         super().__init__()
 
-        self.config = {
-            'height': 3,
-            'width': 4,
-            'perfect_reward': 100.0,
-            'step_penalty': -1.0,
-            'max_steps': 10,
-            'partial_reward_weight': 5.0,
-            'redundant_move_penalty': -2.0
-        }
-        if config:
-            self.config.update(config)
+        self.config = config
 
         self.observation_space = spaces.Box(
             low=0, high=1,
