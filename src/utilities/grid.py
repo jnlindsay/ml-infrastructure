@@ -86,6 +86,29 @@ class GridFactory():
         output_grid = input_grid + amount * self.generate_random()
         return output_grid.clamp(0, 1)
 
+    def generate_random_embedded_square_even(self, square_size: int):
+        if self.num_cols != self.num_rows:
+            raise ValueError("Grid must be a square")
+
+        grid_size = self.num_cols
+        assert grid_size == self.num_rows
+
+        if grid_size % 2 != 0:
+            raise ValueError("Grid size must be even")
+        if square_size % 2 != 0:
+            raise ValueError("Embedded square size must be even")
+        if square_size > grid_size:
+            raise ValueError("Square size cannot be greater than grid size")
+
+        grid = np.zeros((grid_size, grid_size), dtype=np.int8)
+
+        start_idx = (self.num_rows - square_size) // 2
+        end_idx = start_idx + square_size
+
+        grid[start_idx:end_idx, start_idx:end_idx] = np.random.randint(0, 2, (square_size, square_size), dtype=np.int8)
+
+        return grid
+
 class GridBatch():
     def generate_batch(grid_generator, batch_size):
         grids = [grid_generator().unsqueeze(0) for _ in range(batch_size)]
