@@ -133,8 +133,11 @@ class SymmetryEnv(gym.Env):
 
         if redundant:
             reward += self.config['redundant_move_penalty']
+
         if revisited:
             reward += self.config['revisited_penalty']
+        else:
+            reward -= self.config['revisited_penalty']
 
         self.steps += 1
 
