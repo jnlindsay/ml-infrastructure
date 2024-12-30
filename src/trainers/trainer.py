@@ -1,9 +1,15 @@
 from abc import ABC, abstractmethod
 import os
 
+import torch
+
+
 class Trainer(ABC):
     def __init__(self, model_name: str):
-        self.model = self.model_factory()
+        # self.device = torch.device("mps" if torch.mps.is_available() else "cpu")
+        self.device = torch.device("cpu")
+        print("Using device:", self.device)
+        self.model = self.model_factory().to(self.device)
         self.model_name = model_name
 
     @abstractmethod

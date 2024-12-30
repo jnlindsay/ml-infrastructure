@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from utilities.grid import GridFactory, GridBatch
 from trainers.trainer import Trainer
-from models.grid_autoencoder import GridAutoencoder
+from models.grid_autoencoder import GridAutoencoder, ViTAutoencoder
 import torch
 import torch.nn as nn
 from utilities.hash import Hash
@@ -20,7 +20,7 @@ class GridAutoencoderTrainer(Trainer):
         num_epochs: int
 
     def model_factory(self):
-        return GridAutoencoder()
+        return ViTAutoencoder()
 
     def generate_training_set(self, type: str, num_batches: int):
         grid_factory = GridFactory(self.num_rows, self.num_cols)
@@ -63,6 +63,7 @@ class GridAutoencoderTrainer(Trainer):
 
             for epoch in range(phase.num_epochs):
                 for batch in torch.utils.data.DataLoader(training_set, batch_size=32, shuffle=True):
+                    batch = batch.to(self.device)
                     optimizer.zero_grad()
                     outputs = self.model(batch)
                     loss = loss_fn(outputs, batch)
