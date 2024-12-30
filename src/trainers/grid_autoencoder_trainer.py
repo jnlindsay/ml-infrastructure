@@ -73,7 +73,12 @@ class GridAutoencoderTrainer(Trainer):
         
         torch.save(self.model.state_dict(), save_filepath)
 
-    def demonstrate(self, type: str = None, demo_example=None):
+    def demonstrate(
+            self,
+            type: str = None,
+            demo_example=None,
+            show_loss=False,
+    ):
         self.model.eval()
 
         if demo_example is None:
@@ -99,5 +104,10 @@ class GridAutoencoderTrainer(Trainer):
 
         print("\nReconstructed Grid:")
         Visualiser.visualise(reconstructed_grid)
+
+        if show_loss:
+            loss_fn = nn.MSELoss()
+            print("Loss: {:.4f}".format(loss_fn(reconstructed_grid, original_grid).item()))
+            print()
 
         
