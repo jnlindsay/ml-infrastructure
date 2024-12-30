@@ -55,7 +55,7 @@ class ViTAutoencoder(nn.Module):
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
         # Bottleneck
-        self.latent_dim = 32  # Same as your CNN version
+        self.latent_dim = 32
         self.to_latent = nn.Linear(hidden_dim * num_patches, self.latent_dim)
         self.from_latent = nn.Linear(self.latent_dim, hidden_dim * num_patches)
 
@@ -75,10 +75,10 @@ class ViTAutoencoder(nn.Module):
             nn.Unflatten(2, (patch_size, patch_size))
         )
 
-    def forward(self, x):  # expects shape (batch_size, 1, 10, 10)
+    def forward(self, x): # (batch_size, 1, 10, 10)
         # Patch embedding
-        x = self.patch_embed(x)  # (batch_size, hidden_dim, num_patches)
-        x = x.transpose(1, 2)  # (batch_size, num_patches, hidden_dim)
+        x = self.patch_embed(x) # (batch_size, hidden_dim, num_patches)
+        x = x.transpose(1, 2)   # (batch_size, num_patches, hidden_dim)
         x = x + self.pos_embed
 
         # Transformer encoding
@@ -87,17 +87,17 @@ class ViTAutoencoder(nn.Module):
         # Bottleneck
         batch_size = encoded.shape[0]
         flattened = encoded.reshape(batch_size, -1)
-        latent = self.to_latent(flattened)  # (batch_size, latent_dim)
+        latent = self.to_latent(flattened) # (batch_size, latent_dim)
 
         # Decode from latent
         decoded = self.from_latent(latent)
         decoded = decoded.reshape(batch_size, -1, self.hidden_dim)
 
-        # Transformer decoding (using encoded as memory)
+        # Transformer decoding
         decoded = self.transformer_decoder(decoded, encoded)
 
         # Reshape to image
-        patches = self.unpatch(decoded)  # (batch_size, num_patches, patch_size, patch_size)
+        patches = self.unpatch(decoded) # (batch_size, num_patches, patch_size, patch_size)
 
         # Reconstruct image
         height = width = 10
