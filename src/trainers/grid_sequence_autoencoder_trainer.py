@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from utilities.grid import GridFactory, GridBatch
 from trainers.trainer import Trainer
-from models.grid_autoencoder import GridAutoencoder, ViTAutoencoder, ViTSequenceAutoencoder
+from models.grid_autoencoder import ViTGridSequenceAutoencoder
 import torch
 import torch.nn as nn
 from utilities.hash import Hash
@@ -21,7 +21,7 @@ class GridSequenceAutoencoderTrainer(Trainer):
         num_epochs: int
 
     def model_factory(self):
-        return ViTSequenceAutoencoder()
+        return ViTGridSequenceAutoencoder()
 
     def generate_training_set(self, type: str, batch_size: int):
         grid_factory = GridFactory(self.num_rows, self.num_cols)
